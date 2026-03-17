@@ -1,15 +1,39 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+  --color-primary-50: #f2fcff;
+  --color-primary-100: #e3f8ff;
+  --color-primary-200: #bfefff;
+  --color-primary-300: #8ae4ff;
+  --color-primary-400: #4ecfff;
+  --color-primary-500: #26b1fd;
+  --color-primary-600: #1390f0;
+  --color-primary-700: #1072d1;
+  --color-primary-800: #125ba7;
+  --color-primary-900: #1A3C5E; /* Main Navy Blue */
+  --color-primary-950: #0e243b;
+
+  --color-accent-50: #fffceb;
+  --color-accent-100: #fff5c6;
+  --color-accent-200: #ffea88;
+  --color-accent-300: #ffd84a;
+  --color-accent-400: #ffc21a;
+  --color-accent-500: #E8A838; /* Main Amber Gold */
+  --color-accent-600: #d68100;
+  --color-accent-700: #b25d00;
+  --color-accent-800: #8f4807;
+  --color-accent-900: #783a0a;
+  --color-accent-950: #451d03;
+
+  --color-background-app: #F4F6F9;
+  --color-surface: #FFFFFF;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root {
+  --background: var(--color-background-app);
+  --foreground: #171717;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -20,7 +44,12 @@
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
 }
