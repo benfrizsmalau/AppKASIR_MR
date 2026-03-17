@@ -4,52 +4,114 @@ import { dbAdmin } from '@/lib/supabase';
 import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
 
+// Role yang diizinkan masuk ke Portal Pemilik
+const OWNER_ROLES = ['Owner', 'Admin'];
+
 export async function processOwnerSignIn(email, password) {
     try {
-        // Find owner (Role = Admin and email match)
+        if (!email || !password) {
+            return { success: false, message: 'Email dan kata sandi wajib diisi.' };
+        }
+
+        // Cari akun berdasarkan email (Owner atau Admin)
         const { data: user, error } = await dbAdmin
             .from('staff_users')
-            .select('id, tenant_id, outlet_id, full_name, role, pin_hash')
-            .eq('email', email)
-            .eq('role', 'Admin')
-            .single();
+            .select('id, tenant_id, outlet_id, full_name, role, pin_hash, is_active')
+            .eq('email', email.toLowerCase().trim())
+            .in('role', OWNER_ROLES)
+            .maybeSingle();
 
-        if (error || !user) {
-            return { success: false, message: 'Email tidak ditemukan atau Anda bukan pemilik.' };
+        // Gunakan pesan generik agar tidak membocorkan info (cegah user enumeration)
+        if (!user) {
+            return { success: false, message: 'Email atau kata sandi salah.' };
         }
 
-        // Compare password using bcrypt
+        if (!user.is_active) {
+            return { success: false, message: 'Akun Anda dinonaktifkan. Hubungi administrator.' };
+        }
+
+        // Verifikasi password dengan bcrypt
         const isMatch = await bcrypt.compare(password, user.pin_hash);
         if (!isMatch) {
-            return { success: false, message: 'Kata sandi salah.' };
+            return { success: false, message: 'Email atau kata sandi salah.' };
         }
 
-        // Fetch tenant status
+        // Cek status tenant
         const { data: tenant } = await dbAdmin
             .from('tenants')
-            .select('status, name, subdomain')
+            .select('id, status, name, subdomain, subscription_plan')
             .eq('id', user.tenant_id)
             .single();
 
-        if (tenant?.status === 'Suspend' || tenant?.status === 'Nonaktif') {
-            return { success: false, message: `Akun Usaha (${tenant.name}) ditangguhkan. Hubungi CS AppKasir.` };
+        if (!tenant) {
+            return { success: false, message: 'Data usaha tidak ditemukan. Hubungi support.' };
         }
 
-        // Login successful. Set cookies.
-        const cookieStore = await cookies();
-        cookieStore.set('session_user_id', user.id, { path: '/', httpOnly: true });
-        cookieStore.set('active_tenant_id', user.tenant_id, { path: '/', httpOnly: true });
-        if (user.outlet_id) cookieStore.set('active_outlet_id', user.outlet_id, { path: '/', httpOnly: true });
+        if (tenant.status === 'Suspend' || tenant.status === 'Nonaktif') {
+            return { success: false, message: `Akun usaha "${tenant.name}" ditangguhkan. Hubungi AppKasir Support.` };
+        }
 
-        // Redirect URL logic
+        // Login berhasil — set session cookies
+        const cookieStore = await cookies();
+        cookieStore.set('session_user_id', user.id, {
+            path: '/',
+            httpOnly: true,
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24 * 7, // 7 hari
+        });
+        cookieStore.set('active_tenant_id', user.tenant_id, {
+            path: '/',
+            httpOnly: true,
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24 * 7,
+        });
+        if (user.outlet_id) {
+            cookieStore.set('active_outlet_id', user.outlet_id, {
+                path: '/',
+                httpOnly: true,
+                sameSite: 'lax',
+                maxAge: 60 * 60 * 24 * 7,
+            });
+        }
+
         return {
             success: true,
             redirectUrl: '/portal',
-            message: `Selamat datang, ${user.full_name}`
+            userName: user.full_name,
+            message: `Selamat datang kembali, ${user.full_name}!`,
         };
 
     } catch (err) {
         console.error('Sign In Error:', err);
-        return { success: false, message: 'Terjadi kesalahan sistem.' };
+        return { success: false, message: 'Terjadi kesalahan sistem. Coba lagi nanti.' };
+    }
+}
+
+export async function processOwnerSignOut() {
+    try {
+        const cookieStore = await cookies();
+        cookieStore.delete('session_user_id');
+        cookieStore.delete('active_tenant_id');
+        cookieStore.delete('active_outlet_id');
+        return { success: true };
+    } catch (err) {
+        return { success: false };
+    }
+}
+
+export async function sendPasswordReset(email) {
+    // Placeholder — pada versi produksi terhubung ke email service (SendGrid/SES)
+    try {
+        const { data: user } = await dbAdmin
+            .from('staff_users')
+            .select('id, full_name')
+            .eq('email', email.toLowerCase().trim())
+            .in('role', OWNER_ROLES)
+            .maybeSingle();
+
+        // Selalu return success agar tidak membocorkan apakah email terdaftar
+        return { success: true, message: 'Jika email terdaftar, instruksi reset akan dikirim ke inbox Anda.' };
+    } catch (err) {
+        return { success: true, message: 'Jika email terdaftar, instruksi reset akan dikirim ke inbox Anda.' };
     }
 }
