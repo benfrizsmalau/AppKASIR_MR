@@ -10,7 +10,7 @@ async function getActiveContext() {
     return { tenant_id, outlet_id };
 }
 
-export async function processPayment({ orderId, cartData, paymentMethod, subtotal, taxAmount, grandTotal, cashTendered, changeAmount, customerId, customerName }) {
+export async function processPayment({ orderId, cartData, paymentMethod, mixedPayments, itemsSubtotal, discountTotal, serviceChargeAmount, dppTotal, taxAmount, grandTotal, cashTendered, changeAmount, customerId, customerName }) {
     try {
         const { tenant_id, outlet_id } = await getActiveContext();
         if (!tenant_id || !outlet_id) return { success: false, message: 'Invalid session' };
@@ -21,7 +21,7 @@ export async function processPayment({ orderId, cartData, paymentMethod, subtota
         let finalOrderId = orderId;
         const receiptNumber = `RCP-${Date.now().toString().slice(-6)}`;
 
-        // 1. Jika ini pembayaran langsung (Bukan dari Hold Bill) -> Buat Order Baru
+        // 1. Jika pembayaran langsung (bukan dari Hold Bill) → Buat Order Baru
         if (!finalOrderId) {
             const orderNumber = `ORD-${Date.now().toString().slice(-6)}`;
             const { data: order, error: orderErr } = await dbAdmin
@@ -31,11 +31,12 @@ export async function processPayment({ orderId, cartData, paymentMethod, subtota
                     customer_id: customerId || null,
                     customer_name: customerName || null,
                     order_number: orderNumber,
-                    order_type: 'Takeaway', // Default direct payment is takeaway/walk-in
-                    subtotal,
-                    dpp_total: subtotal, // Dasar Pengenaan Pajak
-                    pbjt_total: taxAmount,
-                    discount_total: 0,
+                    order_type: 'Takeaway',
+                    subtotal: itemsSubtotal || grandTotal,
+                    dpp_total: dppTotal || grandTotal,
+                    pbjt_total: taxAmount || 0,
+                    discount_total: discountTotal || 0,
+                    service_charge_total: serviceChargeAmount || 0,
                     grand_total: grandTotal,
                     status: 'Selesai',
                     is_credit: paymentMethod === 'Hutang'
@@ -47,7 +48,9 @@ export async function processPayment({ orderId, cartData, paymentMethod, subtota
             // Insert items
             const orderItemsPayload = cartData.map(item => ({
                 tenant_id, order_id: finalOrderId, menu_item_id: item.id,
-                quantity: item.qty, unit_price: item.price, subtotal: item.price * item.qty
+                quantity: item.qty, unit_price: item.price, subtotal: item.price * item.qty,
+                notes: item.itemNotes || item.notes || '',
+                variation_label: item.variationLabels?.join(', ') || null
             }));
 
             const { error: itemsErr } = await dbAdmin.from('order_items').insert(orderItemsPayload);
@@ -108,19 +111,68 @@ export async function processPayment({ orderId, cartData, paymentMethod, subtota
             }
         }
 
-        // 5. Catat Transaksi Pembayaran
-        const paymentPayload = {
-            tenant_id, outlet_id, order_id: finalOrderId,
-            cashier_id: cashier_id,
-            payment_method: paymentMethod, // 'Tunai', 'QRIS', 'Hutang', dll
-            amount_paid: paymentMethod === 'Hutang' ? 0 : (paymentMethod === 'Tunai' ? cashTendered : grandTotal),
-            amount_change: paymentMethod === 'Tunai' ? changeAmount : 0,
-            reference_number: receiptNumber,
-            status: paymentMethod === 'Hutang' ? 'Pending' : 'Lunas'
-        };
+        // 4b. Auto-deduct Ingredients via Recipes
+        try {
+            for (const item of cartData) {
+                const { data: recipeItems } = await dbAdmin
+                    .from('recipes')
+                    .select('ingredient_id, quantity_used')
+                    .eq('menu_item_id', item.id)
+                    .eq('tenant_id', tenant_id);
 
-        const { error: payErr } = await dbAdmin.from('payments').insert(paymentPayload);
-        if (payErr) throw payErr;
+                if (recipeItems && recipeItems.length > 0) {
+                    for (const recipe of recipeItems) {
+                        const totalUsed = Number(recipe.quantity_used) * Number(item.qty);
+                        // Fetch current stock
+                        const { data: ing } = await dbAdmin.from('ingredients').select('current_stock').eq('id', recipe.ingredient_id).single();
+                        if (ing) {
+                            const newStock = Math.max(0, Number(ing.current_stock) - totalUsed);
+                            await dbAdmin.from('ingredients').update({ current_stock: newStock }).eq('id', recipe.ingredient_id);
+                            // Log movement
+                            await dbAdmin.from('stock_movements').insert([{
+                                tenant_id, outlet_id,
+                                ingredient_id: recipe.ingredient_id,
+                                movement_type: 'Keluar',
+                                quantity: totalUsed,
+                                notes: `Penjualan order ${receiptNumber}`,
+                            }]);
+                        }
+                    }
+                }
+            }
+        } catch (recipeErr) {
+            console.error('Recipe auto-deduct error (non-fatal):', recipeErr);
+        }
+
+        // 5. Catat Transaksi Pembayaran
+        if (paymentMethod === 'Campuran' && mixedPayments?.length > 0) {
+            // Insert satu record per metode pembayaran
+            const multiPayloads = mixedPayments
+                .filter(p => parseFloat(p.amount) > 0)
+                .map(p => ({
+                    tenant_id, outlet_id, order_id: finalOrderId,
+                    cashier_id,
+                    payment_method: p.method,
+                    amount_paid: parseFloat(p.amount),
+                    amount_change: 0,
+                    reference_number: receiptNumber,
+                    status: 'Lunas'
+                }));
+            const { error: multiPayErr } = await dbAdmin.from('payments').insert(multiPayloads);
+            if (multiPayErr) throw multiPayErr;
+        } else {
+            const paymentPayload = {
+                tenant_id, outlet_id, order_id: finalOrderId,
+                cashier_id,
+                payment_method: paymentMethod,
+                amount_paid: paymentMethod === 'Hutang' ? 0 : (paymentMethod === 'Tunai' ? cashTendered : grandTotal),
+                amount_change: paymentMethod === 'Tunai' ? changeAmount : 0,
+                reference_number: receiptNumber,
+                status: paymentMethod === 'Hutang' ? 'Pending' : 'Lunas'
+            };
+            const { error: payErr } = await dbAdmin.from('payments').insert(paymentPayload);
+            if (payErr) throw payErr;
+        }
 
         return { success: true, receiptNumber };
 

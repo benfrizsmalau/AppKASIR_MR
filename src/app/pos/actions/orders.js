@@ -2,6 +2,7 @@
 
 import { dbAdmin } from '@/lib/supabase';
 import { cookies } from 'next/headers';
+import { createAuditLog } from './audit';
 
 // Helper function to get current active context
 async function getActiveContext() {
@@ -32,15 +33,13 @@ export async function getTablesData() {
     }
 }
 
-export async function holdOrderSubmit({ cartData, tableId, orderType, subtotal, taxAmount, grandTotal, notes, customerId, customerName }) {
+export async function holdOrderSubmit({ cartData, tableId, orderType, itemsSubtotal, discountTotal, serviceChargeAmount, dppTotal, taxAmount, grandTotal, notes, customerId, customerName }) {
     try {
         const { tenant_id, outlet_id, user_id } = await getActiveContext();
         if (!tenant_id || !outlet_id || !user_id) return { success: false, message: 'Sesi Kasir tidak valid.' };
 
-        // 1. Generate Order Number (Simple logic for MVP: #ORD-TIMESTAMP)
         const orderNumber = `ORD-${Date.now().toString().slice(-6)}`;
 
-        // 2. Insert into Orders Table
         const orderPayload = {
             tenant_id,
             outlet_id,
@@ -49,13 +48,14 @@ export async function holdOrderSubmit({ cartData, tableId, orderType, subtotal, 
             customer_id: customerId || null,
             customer_name: customerName || null,
             order_number: orderNumber,
-            order_type: orderType, // 'Dine-In', 'Takeaway', 'Delivery'
-            subtotal,
-            dpp_total: subtotal,
-            pbjt_total: taxAmount,
-            discount_total: 0,
+            order_type: orderType,
+            subtotal: itemsSubtotal || 0,
+            dpp_total: dppTotal || 0,
+            pbjt_total: taxAmount || 0,
+            discount_total: discountTotal || 0,
+            service_charge_total: serviceChargeAmount || 0,
             grand_total: grandTotal,
-            status: 'Baru', // Match ENUM: 'Baru', 'Dikirim ke Dapur', etc.
+            status: 'Baru',
             notes
         };
 
@@ -75,7 +75,8 @@ export async function holdOrderSubmit({ cartData, tableId, orderType, subtotal, 
             quantity: item.qty,
             unit_price: item.price,
             subtotal: item.price * item.qty,
-            notes: item.notes || ''
+            notes: item.itemNotes || item.notes || '',
+            variation_label: item.variationLabels?.join(', ') || null
         }));
 
         // 4. Insert Order Items
@@ -95,6 +96,156 @@ export async function holdOrderSubmit({ cartData, tableId, orderType, subtotal, 
     } catch (err) {
         console.error('Error holding order:', err);
         return { success: false, message: 'Gagal menyimpan pesanan (Hold).' };
+    }
+}
+
+export async function cancelOrderItem(orderId, itemId, reason) {
+    try {
+        const { tenant_id, outlet_id, user_id } = await getActiveContext();
+        if (!tenant_id) return { success: false, message: 'Invalid session' };
+
+        // Fetch the item data before cancelling (for audit)
+        const { data: item, error: fetchErr } = await dbAdmin
+            .from('order_items')
+            .select('*, menu_items(name)')
+            .eq('id', itemId)
+            .eq('tenant_id', tenant_id)
+            .single();
+
+        if (fetchErr || !item) return { success: false, message: 'Item pesanan tidak ditemukan.' };
+
+        // Mark item as cancelled
+        const { error } = await dbAdmin
+            .from('order_items')
+            .update({ status: 'Dibatalkan', cancellation_reason: reason })
+            .eq('id', itemId)
+            .eq('tenant_id', tenant_id);
+
+        if (error) throw error;
+
+        // Audit log
+        await createAuditLog({
+            action: 'CANCEL_ITEM',
+            entity_type: 'order_items',
+            entity_id: itemId,
+            old_data: { status: item.status, quantity: item.quantity },
+            new_data: { status: 'Dibatalkan', cancellation_reason: reason },
+            notes: `Batalkan item: ${item.menu_items?.name} (x${item.quantity}) dari order ${orderId}. Alasan: ${reason}`
+        });
+
+        // Recalculate order totals (subtract cancelled item's subtotal)
+        const { data: remainingItems } = await dbAdmin
+            .from('order_items')
+            .select('subtotal')
+            .eq('order_id', orderId)
+            .eq('tenant_id', tenant_id)
+            .neq('status', 'Dibatalkan');
+
+        const newSubtotal = (remainingItems || []).reduce((sum, it) => sum + Number(it.subtotal), 0);
+
+        await dbAdmin
+            .from('orders')
+            .update({ subtotal: newSubtotal, grand_total: newSubtotal })
+            .eq('id', orderId)
+            .eq('tenant_id', tenant_id);
+
+        return { success: true, message: 'Item berhasil dibatalkan.' };
+    } catch (err) {
+        console.error('cancelOrderItem error:', err);
+        return { success: false, message: 'Gagal membatalkan item.' };
+    }
+}
+
+export async function cancelOrder(orderId, reason) {
+    try {
+        const { tenant_id } = await getActiveContext();
+        if (!tenant_id) return { success: false, message: 'Invalid session' };
+
+        // Fetch order to know table_id
+        const { data: order, error: fetchErr } = await dbAdmin
+            .from('orders')
+            .select('id, order_number, table_id, status')
+            .eq('id', orderId)
+            .eq('tenant_id', tenant_id)
+            .single();
+
+        if (fetchErr || !order) return { success: false, message: 'Pesanan tidak ditemukan.' };
+        if (order.status === 'Selesai') return { success: false, message: 'Pesanan sudah selesai, tidak bisa dibatalkan.' };
+
+        const { error } = await dbAdmin
+            .from('orders')
+            .update({ status: 'Dibatalkan', notes: `[DIBATALKAN: ${reason}]` })
+            .eq('id', orderId)
+            .eq('tenant_id', tenant_id);
+
+        if (error) throw error;
+
+        // Free table if Dine-In
+        if (order.table_id) {
+            await dbAdmin.from('tables').update({ status: 'Kosong' }).eq('id', order.table_id).eq('tenant_id', tenant_id);
+        }
+
+        await createAuditLog({
+            action: 'CANCEL_ORDER',
+            entity_type: 'orders',
+            entity_id: orderId,
+            old_data: { status: order.status },
+            new_data: { status: 'Dibatalkan' },
+            notes: `Batalkan order ${order.order_number}. Alasan: ${reason}`
+        });
+
+        return { success: true, message: `Pesanan ${order.order_number} berhasil dibatalkan.` };
+    } catch (err) {
+        console.error('cancelOrder error:', err);
+        return { success: false, message: 'Gagal membatalkan pesanan.' };
+    }
+}
+
+export async function processRefund(orderId, reason) {
+    try {
+        const { tenant_id, outlet_id, user_id } = await getActiveContext();
+        if (!tenant_id) return { success: false, message: 'Invalid session' };
+
+        // Fetch order to verify it's completed
+        const { data: order, error: fetchErr } = await dbAdmin
+            .from('orders')
+            .select('id, order_number, grand_total, pbjt_total, subtotal, table_id, status, is_refunded')
+            .eq('id', orderId)
+            .eq('tenant_id', tenant_id)
+            .single();
+
+        if (fetchErr || !order) return { success: false, message: 'Pesanan tidak ditemukan.' };
+        if (order.status !== 'Selesai') return { success: false, message: 'Hanya pesanan selesai yang bisa direfund.' };
+        if (order.is_refunded) return { success: false, message: 'Pesanan ini sudah pernah direfund.' };
+
+        // Mark order as refunded
+        const { error } = await dbAdmin
+            .from('orders')
+            .update({
+                is_refunded: true,
+                refund_reason: reason,
+                refunded_at: new Date().toISOString(),
+                refunded_by: user_id,
+            })
+            .eq('id', orderId)
+            .eq('tenant_id', tenant_id);
+
+        if (error) throw error;
+
+        // Audit log
+        await createAuditLog({
+            action: 'PROCESS_REFUND',
+            entity_type: 'orders',
+            entity_id: orderId,
+            old_data: { status: order.status, grand_total: order.grand_total },
+            new_data: { is_refunded: true, refund_reason: reason },
+            notes: `Refund order ${order.order_number} (Rp ${Number(order.grand_total).toLocaleString('id-ID')}). Alasan: ${reason}`
+        });
+
+        return { success: true, message: `Refund untuk ${order.order_number} berhasil diproses.` };
+    } catch (err) {
+        console.error('processRefund error:', err);
+        return { success: false, message: 'Gagal memproses refund.' };
     }
 }
 

@@ -1,22 +1,34 @@
 "use client";
 
-import { Home, ClipboardList, History, Settings, Users, UtensilsCrossed, BarChart3, Layout, Monitor } from "lucide-react";
+import { Home, ClipboardList, History, Settings, Users, UtensilsCrossed, BarChart3, Layout, Monitor, Package } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export default function POSSidebar() {
+// Role hierarchy
+const ROLES = ['Kasir', 'Supervisor', 'Manajer', 'Admin', 'Owner'];
+
+function hasAccess(userRole, minRole) {
+    const u = ROLES.indexOf(userRole);
+    const m = ROLES.indexOf(minRole);
+    return u >= 0 && m >= 0 && u >= m;
+}
+
+const ALL_NAV_ITEMS = [
+    { icon: Home, label: "Kasir", href: "/pos", minRole: "Kasir" },
+    { icon: ClipboardList, label: "Pesanan Masuk", href: "/pos/orders", minRole: "Kasir" },
+    { icon: Monitor, label: "KDS", href: "/pos/kds", minRole: "Kasir" },
+    { icon: History, label: "Riwayat", href: "/pos/history", minRole: "Kasir" },
+    { icon: Layout, label: "Meja", href: "/pos/tables", minRole: "Kasir" },
+    { icon: Users, label: "Pelanggan", href: "/pos/customers", minRole: "Supervisor" },
+    { icon: UtensilsCrossed, label: "Menu & Stok", href: "/pos/menu", minRole: "Supervisor" },
+    { icon: Package, label: "Inventaris", href: "/pos/inventory", minRole: "Supervisor" },
+    { icon: BarChart3, label: "Laporan", href: "/pos/reports", minRole: "Manajer" },
+];
+
+export default function POSSidebar({ userRole }) {
     const pathname = usePathname();
 
-    const navItems = [
-        { icon: Home, label: "Kasir", href: "/pos" },
-        { icon: ClipboardList, label: "Pesanan Masuk", href: "/pos/orders" },
-        { icon: Monitor, label: "KDS", href: "/pos/kds" },
-        { icon: History, label: "Riwayat", href: "/pos/history" },
-        { icon: Layout, label: "Meja", href: "/pos/tables" },
-        { icon: Users, label: "Pelanggan", href: "/pos/customers" },
-        { icon: UtensilsCrossed, label: "Menu & Stok", href: "/pos/menu" },
-        { icon: BarChart3, label: "Laporan", href: "/pos/reports" },
-    ];
+    const navItems = ALL_NAV_ITEMS.filter(item => hasAccess(userRole || 'Kasir', item.minRole));
 
     return (
         <aside className="w-20 lg:w-24 bg-primary-900 text-white flex flex-col items-center py-6 hidden md:flex shrink-0 z-20 shadow-2xl">
@@ -50,14 +62,19 @@ export default function POSSidebar() {
                 })}
             </nav>
 
-            <div className="mt-auto w-full px-4">
-                <Link
-                    href="/pengaturan"
-                    className="w-full aspect-square rounded-2xl flex flex-col items-center justify-center gap-1 text-primary-300 hover:bg-primary-800/50 hover:text-white transition-all group"
-                >
-                    <Settings className="w-6 h-6 group-hover:rotate-45 transition-transform duration-300" />
-                    <span className="text-[10px] font-bold">Setting</span>
-                </Link>
+            <div className="mt-auto w-full px-4 space-y-2">
+                {hasAccess(userRole || 'Kasir', 'Admin') && (
+                    <Link
+                        href="/pengaturan"
+                        className="w-full aspect-square rounded-2xl flex flex-col items-center justify-center gap-1 text-primary-300 hover:bg-primary-800/50 hover:text-white transition-all group"
+                    >
+                        <Settings className="w-6 h-6 group-hover:rotate-45 transition-transform duration-300" />
+                        <span className="text-[10px] font-bold">Setting</span>
+                    </Link>
+                )}
+                <div className="w-full text-center pb-2">
+                    <span className="text-[9px] font-black text-primary-500 uppercase tracking-widest">{userRole || 'Kasir'}</span>
+                </div>
             </div>
         </aside>
     );

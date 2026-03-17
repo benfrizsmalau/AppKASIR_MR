@@ -13,9 +13,12 @@ import {
     Move,
     X,
     Check,
-    Loader2
+    Loader2,
+    ArrowRight,
+    GitMerge,
+    AlertCircle
 } from "lucide-react";
-import { saveTable, updateTablePositions, deleteTable } from "../actions";
+import { saveTable, updateTablePositions, deleteTable, transferOrder, mergeTables } from "../actions";
 
 export default function TableManagerClient({ initialTables }) {
     const router = useRouter();
@@ -27,6 +30,80 @@ export default function TableManagerClient({ initialTables }) {
     const [hasUnsavedPositions, setHasUnsavedPositions] = useState(false);
 
     const containerRef = useRef(null);
+
+    // Transfer & Merge mode
+    const [interactionMode, setInteractionMode] = useState(null); // null | 'transfer' | 'merge'
+    const [transferSource, setTransferSource] = useState(null); // tableId
+    const [mergeSelected, setMergeSelected] = useState([]); // [tableId, ...]
+    const [actionLoading, setActionLoading] = useState(false);
+    const [actionMsg, setActionMsg] = useState(null); // {type:'success'|'error', text}
+
+    const exitInteractionMode = () => {
+        setInteractionMode(null);
+        setTransferSource(null);
+        setMergeSelected([]);
+        setActionMsg(null);
+    };
+
+    const handleTransferClick = async (tableId) => {
+        const table = tables.find(t => t.id === tableId);
+        if (!transferSource) {
+            // Select source: must be Terisi
+            if (table.status !== 'Terisi') {
+                setActionMsg({ type: 'error', text: 'Pilih meja yang sedang Terisi sebagai sumber.' });
+                return;
+            }
+            setTransferSource(tableId);
+            setActionMsg({ type: 'info', text: 'Meja sumber dipilih. Sekarang pilih meja tujuan (Kosong).' });
+        } else {
+            if (tableId === transferSource) {
+                setTransferSource(null);
+                setActionMsg({ type: 'info', text: 'Pilih meja sumber (Terisi).' });
+                return;
+            }
+            if (table.status !== 'Kosong') {
+                setActionMsg({ type: 'error', text: 'Meja tujuan harus Kosong.' });
+                return;
+            }
+            setActionLoading(true);
+            const res = await transferOrder(transferSource, tableId);
+            setActionLoading(false);
+            if (res.success) {
+                setActionMsg({ type: 'success', text: res.message });
+                router.refresh();
+                setTimeout(exitInteractionMode, 1500);
+            } else {
+                setActionMsg({ type: 'error', text: res.message });
+            }
+        }
+    };
+
+    const handleMergeClick = (tableId) => {
+        setMergeSelected(prev => {
+            if (prev.includes(tableId)) return prev.filter(id => id !== tableId);
+            return [...prev, tableId];
+        });
+        setActionMsg(null);
+    };
+
+    const handleConfirmMerge = async () => {
+        if (mergeSelected.length < 2) {
+            setActionMsg({ type: 'error', text: 'Pilih minimal 2 meja untuk digabungkan.' });
+            return;
+        }
+        const primaryId = mergeSelected[0];
+        const secondaryIds = mergeSelected.slice(1);
+        setActionLoading(true);
+        const res = await mergeTables(primaryId, secondaryIds);
+        setActionLoading(false);
+        if (res.success) {
+            setActionMsg({ type: 'success', text: res.message });
+            router.refresh();
+            setTimeout(exitInteractionMode, 1500);
+        } else {
+            setActionMsg({ type: 'error', text: res.message });
+        }
+    };
 
     // Filter by Area
     const areas = ["Utama", "Lantai 2", "VVIP", "Outdoor"];
@@ -143,7 +220,7 @@ export default function TableManagerClient({ initialTables }) {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {viewMode === "Visual" && hasUnsavedPositions && (
+                    {viewMode === "Visual" && hasUnsavedPositions && !interactionMode && (
                         <button
                             onClick={savePositions}
                             disabled={isLoading}
@@ -153,12 +230,36 @@ export default function TableManagerClient({ initialTables }) {
                             Simpan Posisi
                         </button>
                     )}
-                    <button
-                        onClick={() => handleOpenModal()}
-                        className="bg-primary-900 text-accent-400 hover:bg-primary-800 px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-primary-200 transition-all active:scale-95"
-                    >
-                        <Plus className="w-5 h-5" /> Tambah Meja
-                    </button>
+                    {!interactionMode && (
+                        <>
+                            <button
+                                onClick={() => { setInteractionMode('transfer'); setActionMsg({ type: 'info', text: 'Pilih meja sumber (Terisi) untuk dipindahkan.' }); }}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-blue-200 transition-all active:scale-95 text-sm"
+                            >
+                                <ArrowRight className="w-4 h-4" /> Pindah Meja
+                            </button>
+                            <button
+                                onClick={() => { setInteractionMode('merge'); setActionMsg({ type: 'info', text: 'Pilih meja-meja yang ingin digabungkan (min 2). Meja pertama = meja utama.' }); }}
+                                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-purple-200 transition-all active:scale-95 text-sm"
+                            >
+                                <GitMerge className="w-4 h-4" /> Gabung Meja
+                            </button>
+                            <button
+                                onClick={() => handleOpenModal()}
+                                className="bg-primary-900 text-accent-400 hover:bg-primary-800 px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-primary-200 transition-all active:scale-95"
+                            >
+                                <Plus className="w-5 h-5" /> Tambah Meja
+                            </button>
+                        </>
+                    )}
+                    {interactionMode && (
+                        <button
+                            onClick={exitInteractionMode}
+                            className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all active:scale-95"
+                        >
+                            <X className="w-4 h-4" /> Batal
+                        </button>
+                    )}
                 </div>
             </header>
 
@@ -178,6 +279,27 @@ export default function TableManagerClient({ initialTables }) {
                 </div>
             </div>
 
+            {/* Interaction Mode Banner */}
+            {interactionMode && (
+                <div className={`px-8 py-3 border-b flex items-center gap-4 shrink-0 ${actionMsg?.type === 'error' ? 'bg-red-50 border-red-200' : actionMsg?.type === 'success' ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'}`}>
+                    <div className={`flex items-center gap-2 flex-1 text-sm font-semibold ${actionMsg?.type === 'error' ? 'text-red-700' : actionMsg?.type === 'success' ? 'text-green-700' : 'text-blue-700'}`}>
+                        {actionLoading ? <Loader2 className="w-4 h-4 animate-spin shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+                        <span className="font-black uppercase tracking-wide text-xs mr-2">{interactionMode === 'transfer' ? 'Mode Pindah Meja' : 'Mode Gabung Meja'}:</span>
+                        {actionMsg?.text}
+                    </div>
+                    {interactionMode === 'merge' && mergeSelected.length >= 2 && (
+                        <button
+                            onClick={handleConfirmMerge}
+                            disabled={actionLoading}
+                            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 disabled:opacity-50"
+                        >
+                            {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                            Konfirmasi Gabung ({mergeSelected.length} Meja)
+                        </button>
+                    )}
+                </div>
+            )}
+
             <main className="flex-1 relative overflow-hidden p-8">
                 {viewMode === "Visual" ? (
                     <div
@@ -185,28 +307,59 @@ export default function TableManagerClient({ initialTables }) {
                         className="w-full h-full bg-white rounded-[40px] border-4 border-dashed border-slate-200 relative overflow-auto shadow-inner"
                         style={{ minHeight: '600px', backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '40px 40px' }}
                     >
-                        {tables.filter(t => t.area_name === activeArea).map(table => (
+                        {tables.filter(t => t.area_name === activeArea).map(table => {
+                            const isTransferSource = transferSource === table.id;
+                            const isMergeSelected = mergeSelected.includes(table.id);
+                            const isMergePrimary = mergeSelected[0] === table.id;
+
+                            let tableClass = '';
+                            if (interactionMode === 'transfer') {
+                                if (isTransferSource) tableClass = 'bg-blue-600 border-blue-500 text-white ring-4 ring-blue-300 scale-110 z-20';
+                                else if (table.status === 'Terisi') tableClass = 'bg-primary-900 border-primary-800 text-white cursor-pointer hover:ring-4 hover:ring-blue-300';
+                                else if (table.status === 'Kosong') tableClass = 'bg-white border-green-300 text-primary-900 cursor-pointer hover:ring-4 hover:ring-green-300';
+                                else tableClass = 'bg-orange-500 border-orange-600 text-white opacity-40 cursor-not-allowed';
+                            } else if (interactionMode === 'merge') {
+                                if (isMergePrimary) tableClass = 'bg-purple-700 border-purple-600 text-white ring-4 ring-purple-300 scale-110 z-20';
+                                else if (isMergeSelected) tableClass = 'bg-purple-400 border-purple-500 text-white ring-2 ring-purple-300';
+                                else tableClass = 'bg-white border-gray-200 text-primary-900 cursor-pointer hover:ring-4 hover:ring-purple-300';
+                            } else {
+                                if (table.status === 'Kosong') tableClass = 'bg-white border-primary-50 text-primary-900 hover:border-accent-400';
+                                else if (table.status === 'Terisi') tableClass = 'bg-primary-900 border-primary-800 text-white';
+                                else tableClass = 'bg-orange-500 border-orange-600 text-white';
+                            }
+
+                            return (
                             <div
                                 key={table.id}
-                                onMouseDown={(e) => handleDragStart(e, table.id)}
+                                onMouseDown={(e) => {
+                                    if (interactionMode === 'transfer') { handleTransferClick(table.id); return; }
+                                    if (interactionMode === 'merge') { handleMergeClick(table.id); return; }
+                                    handleDragStart(e, table.id);
+                                }}
+                                onClick={(e) => {
+                                    if (interactionMode) e.stopPropagation();
+                                }}
                                 style={{ left: `${table.pos_x}px`, top: `${table.pos_y}px` }}
-                                className={`absolute w-24 h-24 rounded-2xl flex flex-col items-center justify-center cursor-move select-none shadow-xl border-2 transition-all active:scale-95 group hover:z-20 ${table.status === 'Kosong' ? 'bg-white border-primary-50 text-primary-900 hover:border-accent-400' :
-                                        table.status === 'Terisi' ? 'bg-primary-900 border-primary-800 text-white' :
-                                            'bg-orange-500 border-orange-600 text-white'
-                                    }`}
+                                className={`absolute w-24 h-24 rounded-2xl flex flex-col items-center justify-center select-none shadow-xl border-2 transition-all group hover:z-20 ${interactionMode ? 'cursor-pointer' : 'cursor-move active:scale-95'} ${tableClass}`}
                             >
-                                <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white border border-gray-100 shadow-md flex items-center justify-center text-xs font-black text-primary-900 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary-50"
-                                    onClick={(e) => { e.stopPropagation(); handleOpenModal(table); }}>
-                                    <Maximize className="w-4 h-4 text-primary-600" />
-                                </div>
+                                {!interactionMode && (
+                                    <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white border border-gray-100 shadow-md flex items-center justify-center text-xs font-black text-primary-900 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary-50"
+                                        onClick={(e) => { e.stopPropagation(); handleOpenModal(table); }}>
+                                        <Maximize className="w-4 h-4 text-primary-600" />
+                                    </div>
+                                )}
+                                {interactionMode === 'merge' && isMergePrimary && (
+                                    <div className="absolute -top-3 -left-3 bg-purple-700 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">UTAMA</div>
+                                )}
                                 <span className="text-2xl font-black">#{table.table_number}</span>
                                 <div className="flex items-center gap-1 mt-1">
                                     <Users className="w-3 h-3 opacity-60" />
                                     <span className="text-[10px] font-bold">{table.capacity} Org</span>
                                 </div>
-                                {table.status === 'Terisi' && <div className="w-2 h-2 rounded-full bg-green-400 absolute bottom-3 right-3 animate-pulse" />}
+                                {table.status === 'Terisi' && !interactionMode && <div className="w-2 h-2 rounded-full bg-green-400 absolute bottom-3 right-3 animate-pulse" />}
                             </div>
-                        ))}
+                            );
+                        })}
 
                         {tables.filter(t => t.area_name === activeArea).length === 0 && (
                             <div className="h-full flex flex-col items-center justify-center text-slate-300">

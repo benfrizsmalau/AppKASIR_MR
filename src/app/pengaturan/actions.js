@@ -45,6 +45,8 @@ export async function updateOutletSettings(formData) {
             pbjt_active: formData.pbjt_active,
             pbjt_rate: parseFloat(formData.pbjt_rate) || 10,
             pbjt_mode: formData.pbjt_mode || 'Eksklusif',
+            service_charge_active: formData.service_charge_active || false,
+            service_charge_rate: parseFloat(formData.service_charge_rate) || 0,
             updated_at: new Date().toISOString()
         };
 

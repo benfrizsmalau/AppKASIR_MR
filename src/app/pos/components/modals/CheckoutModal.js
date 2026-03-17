@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { X, Utensils, TakeoutDining, MapPin } from "lucide-react";
 import { getTablesData, holdOrderSubmit } from "../../actions/orders";
 
-export default function CheckoutModal({ isOpen, onClose, cart, outletData, onHoldSuccess, selectedCustomer }) {
+export default function CheckoutModal({ isOpen, onClose, cart, outletData, onHoldSuccess, selectedCustomer, billing }) {
+    const { itemsSubtotal = 0, totalDiscountAmount = 0, serviceChargeAmount = 0, dpp = 0, pbjtAmount = 0, grandTotal = 0 } = billing || {};
     const [tables, setTables] = useState([]);
     const [loadingTables, setLoadingTables] = useState(false);
 
@@ -27,10 +28,7 @@ export default function CheckoutModal({ isOpen, onClose, cart, outletData, onHol
         }
     }, [isOpen, orderType]);
 
-    // Kalkulasi
-    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-    const taxAmount = (outletData && outletData.pbjtActive) ? (subtotal * outletData.pbjtRate) : 0;
-    const grandTotal = subtotal + taxAmount;
+    const finalTotal = Math.round(grandTotal);
 
     const handleHoldOrder = async () => {
         if (orderType === 'Dine-In' && !selectedTable) {
@@ -45,9 +43,12 @@ export default function CheckoutModal({ isOpen, onClose, cart, outletData, onHol
             cartData: cart,
             tableId: selectedTable,
             orderType,
-            subtotal,
-            taxAmount,
-            grandTotal,
+            itemsSubtotal,
+            discountTotal: totalDiscountAmount,
+            serviceChargeAmount,
+            dppTotal: dpp,
+            taxAmount: pbjtAmount,
+            grandTotal: finalTotal,
             notes,
             customerId: selectedCustomer?.id,
             customerName: selectedCustomer ? selectedCustomer.name : null

@@ -63,7 +63,7 @@ export default function StaffClient({ initialStaff }) {
                         <Users className="w-7 h-7 text-accent-500" />
                         Manajemen Pengguna
                     </h1>
-                    <p className="text-gray-500 font-medium text-sm mt-1">Kelola akses, PIN, dan peran Kasir atau Manajer.</p>
+                    <p className="text-gray-500 font-medium text-sm mt-1">Kelola akses, PIN, dan peran staf (Kasir, Supervisor, Manajer, Admin, Owner).</p>
                 </div>
 
                 <div className="flex gap-2">
@@ -113,12 +113,17 @@ export default function StaffClient({ initialStaff }) {
                                         </td>
                                         <td className="px-8 py-5">
                                             <div className="flex items-center gap-2">
+                                                {staff.access_role === 'Owner' && <Shield className="w-4 h-4 text-purple-500" />}
                                                 {staff.access_role === 'Admin' && <Shield className="w-4 h-4 text-orange-500" />}
                                                 {staff.access_role === 'Manajer' && <ShieldAlert className="w-4 h-4 text-blue-500" />}
-                                                <span className={`text-xs font-black uppercase px-2 py-0.5 rounded-lg ${staff.access_role === 'Admin' ? 'bg-orange-100 text-orange-600' :
-                                                        staff.access_role === 'Manajer' ? 'bg-blue-100 text-blue-600' :
-                                                            'bg-gray-100 text-gray-600'
-                                                    }`}>
+                                                {staff.access_role === 'Supervisor' && <ShieldAlert className="w-4 h-4 text-teal-500" />}
+                                                <span className={`text-xs font-black uppercase px-2 py-0.5 rounded-lg ${
+                                                    staff.access_role === 'Owner' ? 'bg-purple-100 text-purple-600' :
+                                                    staff.access_role === 'Admin' ? 'bg-orange-100 text-orange-600' :
+                                                    staff.access_role === 'Manajer' ? 'bg-blue-100 text-blue-600' :
+                                                    staff.access_role === 'Supervisor' ? 'bg-teal-100 text-teal-600' :
+                                                    'bg-gray-100 text-gray-600'
+                                                }`}>
                                                     {staff.access_role}
                                                 </span>
                                             </div>
@@ -212,8 +217,10 @@ export default function StaffClient({ initialStaff }) {
                                         className="w-full bg-gray-50 rounded-xl p-3.5 border border-gray-100 focus:bg-white outline-none font-bold text-gray-800 transition-all appearance-none"
                                     >
                                         <option value="Kasir">Kasir</option>
+                                        <option value="Supervisor">Supervisor</option>
                                         <option value="Manajer">Manajer</option>
                                         <option value="Admin">Admin</option>
+                                        <option value="Owner">Owner</option>
                                     </select>
                                 </div>
                             </div>

@@ -38,6 +38,22 @@ export async function getPOSData() {
 
         if (menuErr) throw menuErr;
 
+        // 2b. Fetch Variations for all menu items
+        const menuItemIds = menuItems.map(m => m.id);
+        let variationsMap = {};
+        if (menuItemIds.length > 0) {
+            const { data: variations } = await dbAdmin
+                .from('menu_variations')
+                .select('*')
+                .in('menu_item_id', menuItemIds);
+            if (variations) {
+                variations.forEach(v => {
+                    if (!variationsMap[v.menu_item_id]) variationsMap[v.menu_item_id] = [];
+                    variationsMap[v.menu_item_id].push(v);
+                });
+            }
+        }
+
         // Format menu items to match UI expectations
         const formattedMenu = menuItems.map(item => ({
             id: item.id,
@@ -45,13 +61,14 @@ export async function getPOSData() {
             price: Number(item.price),
             status: item.status,
             image_url: item.image_url,
-            category: item.categories?.name || 'Lainnya'
+            category: item.categories?.name || 'Lainnya',
+            variations: variationsMap[item.id] || []
         }));
 
         // 3. Fetch Outlet Data (For Tax Rules & Print Header)
         const { data: outlet, error: outletErr } = await dbAdmin
             .from('outlets')
-            .select('name, address, phone, npwpd, pbjt_active, pbjt_rate, pbjt_mode')
+            .select('name, address, phone, email, npwpd, pbjt_active, pbjt_rate, pbjt_mode, service_charge_active, service_charge_rate')
             .eq('id', outlet_id)
             .single();
 
@@ -80,6 +97,11 @@ export async function getPOSData() {
         // Extract category names array starting with 'Semua'
         const categoryNames = ['Semua', ...categories.map(c => c.name)];
 
+        // Profile completeness check
+        const REQUIRED_FIELDS = ['name', 'address', 'phone', 'email', 'npwpd'];
+        const profileComplete = REQUIRED_FIELDS.every(f => outlet?.[f] && String(outlet[f]).trim().length > 0);
+        const missingFields = REQUIRED_FIELDS.filter(f => !outlet?.[f] || String(outlet[f]).trim().length === 0);
+
         return {
             success: true,
             categories: categoryNames,
@@ -91,9 +113,13 @@ export async function getPOSData() {
                 phone: outlet.phone,
                 npwpd: outlet.npwpd,
                 pbjtActive: outlet.pbjt_active,
-                pbjtRate: Number(outlet.pbjt_rate) / 100, // convert 10 to 0.1
-                pbjtMode: outlet.pbjt_mode
+                pbjtRate: Number(outlet.pbjt_rate) / 100,
+                pbjtMode: outlet.pbjt_mode,
+                serviceChargeActive: outlet.service_charge_active || false,
+                serviceChargeRate: Number(outlet.service_charge_rate || 0) / 100
             },
+            profileComplete,
+            missingFields,
             userName: userName
         };
 
