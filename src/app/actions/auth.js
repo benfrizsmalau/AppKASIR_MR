@@ -3,6 +3,7 @@
 import bcrypt from 'bcryptjs';
 import { dbAdmin } from '@/lib/supabase';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 
 export async function loginWithPin(userId, pin) {
     try {
@@ -57,4 +58,12 @@ export async function getActiveStaffUsers() {
 
     if (error) return [];
     return users;
+}
+
+export async function logout() {
+    const cookieStore = await cookies();
+    cookieStore.delete('session_user_id');
+    cookieStore.delete('active_tenant_id');
+    cookieStore.delete('active_outlet_id');
+    redirect('/');
 }

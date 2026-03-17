@@ -42,7 +42,8 @@ export async function saveTable(formData) {
             capacity: parseInt(formData.capacity) || 2,
             pos_x: parseInt(formData.pos_x) || 0,
             pos_y: parseInt(formData.pos_y) || 0,
-            status: formData.status || 'Kosong'
+            status: formData.status || 'Kosong',
+            order_type: formData.order_type || 'Dine-In'
         };
 
         let res;

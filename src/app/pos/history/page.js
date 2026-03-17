@@ -21,7 +21,7 @@ export default async function HistoryPage() {
              customer_name,
              is_credit,
              created_at,
-             staff_users ( full_name ),
+             staff_users!cashier_id ( full_name ),
              payments ( payment_method, status )
         `)
         .eq('outlet_id', outlet_id)

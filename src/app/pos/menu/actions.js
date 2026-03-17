@@ -199,7 +199,7 @@ export async function getInventoryLogs() {
 
         const { data, error } = await dbAdmin
             .from('inventory_logs')
-            .select('*, menu_items(name), staff_users(full_name)')
+            .select('*, menu_items(name), staff_users!user_id(full_name)')
             .eq('tenant_id', tenant_id)
             .order('created_at', { ascending: false })
             .limit(100);

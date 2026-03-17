@@ -1,6 +1,7 @@
 "use client";
 
-import { Home, ClipboardList, History, Settings, Users, UtensilsCrossed, BarChart3, Layout, Monitor, Package } from "lucide-react";
+import { Home, ClipboardList, History, Settings, Users, UtensilsCrossed, BarChart3, Layout, Monitor, Package, LogOut } from "lucide-react";
+import { logout } from "@/app/actions/auth";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -72,8 +73,19 @@ export default function POSSidebar({ userRole }) {
                         <span className="text-[10px] font-bold">Setting</span>
                     </Link>
                 )}
-                <div className="w-full text-center pb-2">
+                <div className="w-full text-center pb-2 flex flex-col items-center gap-2">
                     <span className="text-[9px] font-black text-primary-500 uppercase tracking-widest">{userRole || 'Kasir'}</span>
+                    <button
+                        onClick={async () => {
+                            if (confirm('Apakah Anda yakin ingin keluar?')) {
+                                await logout();
+                            }
+                        }}
+                        className="p-2 text-primary-400 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all group"
+                        title="Keluar / Ganti User"
+                    >
+                        <LogOut className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    </button>
                 </div>
             </div>
         </aside>

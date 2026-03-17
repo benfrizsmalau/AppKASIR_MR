@@ -120,6 +120,7 @@ export default function TableManagerClient({ initialTables }) {
             area_name: activeArea,
             capacity: 2,
             status: "Kosong",
+            order_type: "Dine-In",
             pos_x: 100,
             pos_y: 100
         });
@@ -380,6 +381,7 @@ export default function TableManagerClient({ initialTables }) {
                                         <th className="px-6 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">No. Meja</th>
                                         <th className="px-6 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Area</th>
                                         <th className="px-6 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Kapasitas</th>
+                                        <th className="px-6 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Order Type</th>
                                         <th className="px-6 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
                                         <th className="px-6 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Aksi</th>
                                     </tr>
@@ -402,6 +404,9 @@ export default function TableManagerClient({ initialTables }) {
                                                 <div className="flex items-center gap-2 text-gray-600 font-bold">
                                                     <Users className="w-4 h-4 opacity-40" /> {table.capacity} Orang
                                                 </div>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{table.order_type}</span>
                                             </td>
                                             <td className="px-6 py-5">
                                                 <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${table.status === 'Kosong' ? 'bg-green-100 text-green-700' :
@@ -475,6 +480,18 @@ export default function TableManagerClient({ initialTables }) {
                                         <button key={s} type="button" onClick={() => setEditingTable({ ...editingTable, status: s })}
                                             className={`py-3 rounded-xl border-2 font-black text-xs uppercase tracking-widest transition-all ${editingTable.status === s ? 'border-primary-900 bg-primary-900 text-white' : 'border-gray-100 text-gray-400 hover:border-gray-200'}`}>
                                             {s}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Order Type Default</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {['Dine-In', 'Takeaway'].map(t => (
+                                        <button key={t} type="button" onClick={() => setEditingTable({ ...editingTable, order_type: t })}
+                                            className={`py-3 rounded-xl border-2 font-black text-xs uppercase tracking-widest transition-all ${editingTable.order_type === t ? 'border-primary-900 bg-primary-900 text-white' : 'border-gray-100 text-gray-400 hover:border-gray-200'}`}>
+                                            {t}
                                         </button>
                                     ))}
                                 </div>

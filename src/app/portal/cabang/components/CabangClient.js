@@ -214,19 +214,19 @@ export default function CabangClient({ initialOutlets, subscriptionPlan }) {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="md:col-span-2">
                                         <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Nama Cabang / Outlet *</label>
-                                        <input required type="text" value={editingOutlet.name} onChange={e => setEditingOutlet({ ...editingOutlet, name: e.target.value })} className="w-full bg-gray-50 rounded-2xl p-4 border border-gray-100 focus:bg-white focus:ring-4 ring-primary-900/5 transition-all outline-none font-bold" placeholder="Contoh: AppKasir Sudirman" />
+                                        <input required type="text" value={editingOutlet.name || ""} onChange={e => setEditingOutlet({ ...editingOutlet, name: e.target.value })} className="w-full bg-gray-50 rounded-2xl p-4 border border-gray-100 focus:bg-white focus:ring-4 ring-primary-900/5 transition-all outline-none font-bold text-primary-950" placeholder="Contoh: AppKasir Sudirman" />
                                     </div>
                                     <div className="md:col-span-2">
                                         <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Alamat Lengkap</label>
-                                        <textarea rows={2} value={editingOutlet.address} onChange={e => setEditingOutlet({ ...editingOutlet, address: e.target.value })} className="w-full bg-gray-50 rounded-2xl p-4 border border-gray-100 focus:bg-white outline-none font-bold" placeholder="Jln. Raya No..." />
+                                        <textarea rows={2} value={editingOutlet.address || ""} onChange={e => setEditingOutlet({ ...editingOutlet, address: e.target.value })} className="w-full bg-gray-50 rounded-2xl p-4 border border-gray-100 focus:bg-white outline-none font-bold text-primary-950" placeholder="Jln. Raya No..." />
                                     </div>
                                     <div>
                                         <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Telepon</label>
-                                        <input type="text" value={editingOutlet.phone} onChange={e => setEditingOutlet({ ...editingOutlet, phone: e.target.value })} className="w-full bg-gray-50 rounded-2xl p-4 border border-gray-100 focus:bg-white outline-none font-bold" placeholder="081..." />
+                                        <input type="text" value={editingOutlet.phone || ""} onChange={e => setEditingOutlet({ ...editingOutlet, phone: e.target.value })} className="w-full bg-gray-50 rounded-2xl p-4 border border-gray-100 focus:bg-white outline-none font-bold text-primary-950" placeholder="081..." />
                                     </div>
                                     <div>
                                         <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Email Operasional</label>
-                                        <input type="email" value={editingOutlet.email} onChange={e => setEditingOutlet({ ...editingOutlet, email: e.target.value })} className="w-full bg-gray-50 rounded-2xl p-4 border border-gray-100 focus:bg-white outline-none font-bold" placeholder="cabang@example.com" />
+                                        <input type="email" value={editingOutlet.email || ""} onChange={e => setEditingOutlet({ ...editingOutlet, email: e.target.value })} className="w-full bg-gray-50 rounded-2xl p-4 border border-gray-100 focus:bg-white outline-none font-bold text-primary-950" placeholder="cabang@example.com" />
                                     </div>
                                 </div>
                             </section>
@@ -249,11 +249,11 @@ export default function CabangClient({ initialOutlets, subscriptionPlan }) {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Tarif (%)</label>
-                                                <input type="number" step="0.01" value={editingOutlet.pbjt_rate} onChange={e => setEditingOutlet({ ...editingOutlet, pbjt_rate: e.target.value })} className="w-full bg-white rounded-xl p-3 border border-gray-100 outline-none font-black" />
+                                                <input type="number" step="0.01" value={editingOutlet.pbjt_rate || 0} onChange={e => setEditingOutlet({ ...editingOutlet, pbjt_rate: e.target.value })} className="w-full bg-white rounded-xl p-3 border border-gray-100 outline-none font-black text-primary-950" />
                                             </div>
                                             <div>
                                                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Mode</label>
-                                                <select value={editingOutlet.pbjt_mode} onChange={e => setEditingOutlet({ ...editingOutlet, pbjt_mode: e.target.value })} className="w-full bg-white rounded-xl p-3 border border-gray-100 outline-none font-black text-xs">
+                                                <select value={editingOutlet.pbjt_mode || "Eksklusif"} onChange={e => setEditingOutlet({ ...editingOutlet, pbjt_mode: e.target.value })} className="w-full bg-white rounded-xl p-3 border border-gray-100 outline-none font-black text-xs text-primary-950">
                                                     <option value="Eksklusif">Eksklusif (Tambah)</option>
                                                     <option value="Inklusif">Inklusif (Dalam Harga)</option>
                                                 </select>
@@ -263,11 +263,11 @@ export default function CabangClient({ initialOutlets, subscriptionPlan }) {
                                     <div className="space-y-6 md:border-l md:pl-8 border-gray-200">
                                         <div>
                                             <label className="block text-xs font-black text-primary-900 uppercase tracking-widest mb-2">NPWPD (ID Pajak Daerah)</label>
-                                            <input type="text" value={editingOutlet.npwpd} onChange={e => setEditingOutlet({ ...editingOutlet, npwpd: e.target.value })} className="w-full bg-white rounded-xl p-3 border border-gray-100 outline-none font-bold" placeholder="P.1.000..." />
+                                            <input type="text" value={editingOutlet.npwpd || ""} onChange={e => setEditingOutlet({ ...editingOutlet, npwpd: e.target.value })} className="w-full bg-white rounded-xl p-3 border border-gray-100 outline-none font-bold text-primary-950" placeholder="P.1.000..." />
                                         </div>
                                         <div>
                                             <label className="block text-xs font-black text-primary-900 uppercase tracking-widest mb-2">NIB (Nomor Induk Berusaha)</label>
-                                            <input type="text" value={editingOutlet.nib} onChange={e => setEditingOutlet({ ...editingOutlet, nib: e.target.value })} className="w-full bg-white rounded-xl p-3 border border-gray-100 outline-none font-bold" />
+                                            <input type="text" value={editingOutlet.nib || ""} onChange={e => setEditingOutlet({ ...editingOutlet, nib: e.target.value })} className="w-full bg-white rounded-xl p-3 border border-gray-100 outline-none font-bold text-primary-950" />
                                         </div>
                                     </div>
                                 </div>

@@ -26,7 +26,7 @@ export async function getSalesReport(startDate, endDate) {
             .from('orders')
             .select(`
                 *,
-                staff_users (full_name),
+                staff_users!cashier_id (full_name),
                 payments (*)
             `)
             .eq('tenant_id', tenant_id)
@@ -152,7 +152,7 @@ export async function getShiftSummary(shiftDate) {
 
         const { data: orders, error } = await dbAdmin
             .from('orders')
-            .select('grand_total, status, is_credit, payments(*), staff_users(full_name)')
+            .select('grand_total, status, is_credit, payments(*), staff_users!cashier_id(full_name)')
             .eq('tenant_id', tenant_id)
             .eq('outlet_id', outlet_id)
             .gte('created_at', start)

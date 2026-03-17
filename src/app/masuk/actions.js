@@ -11,7 +11,7 @@ export async function processOwnerSignIn(email, password) {
             .from('staff_users')
             .select('id, tenant_id, outlet_id, full_name, role, pin_hash')
             .eq('email', email)
-            .eq('role', 'Admin')
+            .in('role', ['Admin', 'Owner'])
             .single();
 
         if (error || !user) {
