@@ -1,124 +1,157 @@
 "use client";
 
-import { CreditCard, CalendarDays, ArrowUpRight, CheckCircle2, AlertTriangle, Building2, ExternalLink, FileText } from "lucide-react";
-import { useState } from "react";
+import {
+    Gift, CheckCircle2, Star, FileText, ExternalLink,
+    CalendarDays, ArrowUpRight, MessageCircle, Shield
+} from "lucide-react";
+
+const FREE_FEATURES = [
+    'Kasir POS (Dine-In, Takeaway, Delivery)',
+    'Manajemen Menu & Kategori',
+    'Manajemen Meja & QR Order',
+    'Laporan Penjualan Harian',
+    'Laporan PBJT & Pajak Daerah',
+    'Inventaris Bahan Baku & Resep',
+    'Manajemen Hutang Pelanggan',
+    'Multi Kasir dengan PIN',
+    'Pembatalan & Audit Log',
+    'Portal Pemilik (Dashboard Owner)',
+];
+
+const PRO_FEATURES = [
+    'Semua fitur Gratis +',
+    'Hingga 3 Outlet / Cabang',
+    'KDS — Kitchen Display System',
+    'Laporan Analitik Lanjutan',
+    'Ekspor PDF & Excel',
+    'Dukungan Prioritas via WhatsApp',
+    'Multi-outlet dalam satu akun',
+    'Integrasi printer cloud',
+];
 
 export default function SubscriptionClient({ tenant, initialInvoices }) {
-    const [isLoading, setIsLoading] = useState(false);
-    const [invoices, setInvoices] = useState(initialInvoices || []);
+    const invoices = initialInvoices || [];
 
     if (!tenant) return <p className="text-red-500 font-bold">Data Tenant tidak ditemukan.</p>;
 
-    // Helpers untuk mock date
-    const endDate = new Date(tenant.trial_ends_at || Date.now() + 14 * 24 * 60 * 60 * 1000);
-    const diffDays = Math.ceil((endDate - new Date()) / (1000 * 60 * 60 * 24));
-
-    const packages = [
-        {
-            name: "Starter",
-            price: "Rp 99.000 / bln",
-            features: ["1 Cabang/Outlet Utama", "Maksimal 3 Akun Kasir", "Laporan Penjualan Standar", "Dukungan Email"],
-            isCurrent: tenant.subscription_plan === 'Starter'
-        },
-        {
-            name: "Pro",
-            price: "Rp 249.000 / bln",
-            features: ["Hingga 3 Cabang/Outlet", "Unlimited Akun Kasir", "Laporan Piutang & Pajak Lengkap", "Dukungan Prioritas WA"],
-            isCurrent: tenant.subscription_plan === 'Pro'
-        },
-        {
-            name: "Enterprise",
-            price: "Hubungi Penjualan",
-            features: ["Cabang Unlimited", "Integrasi ERP / API Custom", "Laporan Analisis Eksekutif", "Dedicated Success Manager"],
-            isCurrent: tenant.subscription_plan === 'Enterprise'
-        }
-    ];
+    const createdAt = tenant.created_at ? new Date(tenant.created_at) : new Date();
+    const formattedDate = createdAt.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
     return (
         <div className="space-y-10 animate-in fade-in zoom-in-95 duration-500">
             <header className="border-b pb-6">
                 <h1 className="text-3xl font-black text-primary-900 tracking-tight flex items-center gap-3">
-                    <CreditCard className="w-8 h-8 text-accent-500" /> Langganan SaaS
+                    <Gift className="w-8 h-8 text-green-500" /> Langganan & Paket
                 </h1>
-                <p className="text-gray-500 font-medium mt-1">Kelola paket langganan dan histori tagihan aplikasi POS Anda.</p>
+                <p className="text-gray-500 font-medium mt-1">Status langganan dan detail paket aktif usaha Anda.</p>
             </header>
 
+            {/* ── Banner Paket Aktif ─────────────────────────────────────── */}
+            <div className="bg-gradient-to-br from-green-600 to-green-700 text-white rounded-[32px] p-8 relative overflow-hidden shadow-2xl shadow-green-700/20">
+                <div className="absolute top-0 right-0 w-64 h-64 opacity-10 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white via-green-600 to-green-700 pointer-events-none" />
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div>
+                        <p className="text-xs font-black text-green-200 uppercase tracking-widest mb-2">Paket Aktif Anda</p>
+                        <h2 className="text-4xl font-black mb-1 flex items-center gap-3">
+                            Gratis <Star className="w-8 h-8 text-yellow-300 fill-yellow-300" />
+                        </h2>
+                        <p className="text-green-100 text-sm font-medium">Aktif sejak {formattedDate} · Berlaku Selamanya</p>
+                    </div>
+                    <div className="flex flex-col items-start md:items-end gap-3">
+                        <span className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-white text-green-700 font-black text-sm shadow-md">
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                            Aktif Selamanya
+                        </span>
+                        <p className="text-green-200 text-xs font-medium flex items-center gap-1.5">
+                            <Shield className="w-3.5 h-3.5" /> Tanpa biaya berlangganan
+                        </p>
+                    </div>
+                </div>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Kiri: Status Berlangganan (2 Kolom) */}
+                {/* ── Paket Gratis vs Pro ──────────────────────────────── */}
                 <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-primary-900 text-white rounded-[32px] p-8 relative overflow-hidden shadow-2xl shadow-primary-900/20">
-                        <div className="absolute top-0 right-0 w-full h-full opacity-10 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white via-primary-900 to-primary-900"></div>
-                        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                            <div>
-                                <p className="text-xs font-black text-accent-400 uppercase tracking-widest mb-1">Paket Aktif Anda</p>
-                                <h2 className="text-4xl font-black mb-2">{tenant.subscription_plan}</h2>
-                                <p className="text-primary-200 text-sm">{diffDays > 0 ? `Sisa waktu: ${diffDays} hari lagi` : 'Siklus tagihan Anda telah jatuh tempo.'}</p>
+                    <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm p-8">
+                        <h3 className="font-black text-primary-900 text-lg mb-6">Perbandingan Paket</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                            {/* Gratis */}
+                            <div className="relative p-6 rounded-3xl border-2 border-green-500 bg-green-50/50">
+                                <div className="absolute top-0 right-6 -translate-y-1/2 bg-green-600 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md">
+                                    Paket Aktif
+                                </div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <Gift className="w-5 h-5 text-green-600" />
+                                    <h4 className="font-black text-primary-900 text-xl">Gratis</h4>
+                                </div>
+                                <p className="text-2xl font-black text-green-600 mb-6">Rp 0 <span className="text-sm text-gray-400 font-bold">/ selamanya</span></p>
+                                <ul className="space-y-2.5 mb-6">
+                                    {FREE_FEATURES.map((f, i) => (
+                                        <li key={i} className="flex items-start gap-2.5 text-sm font-medium text-gray-700">
+                                            <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+                                            {f}
+                                        </li>
+                                    ))}
+                                </ul>
+                                <div className="w-full py-3 rounded-2xl font-black text-sm text-center bg-green-600 text-white opacity-60 cursor-default">
+                                    ✓ Paket Saat Ini
+                                </div>
                             </div>
-                            <div className="text-right flex flex-col items-end">
-                                <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-sm font-black uppercase tracking-widest bg-white text-primary-900`}>
-                                    <div className={`w-2 h-2 rounded-full ${diffDays > 0 ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-                                    {tenant.status === 'Trial' ? 'Masa Percobaan' : tenant.status}
-                                </span>
-                                <p className="text-primary-300 text-xs font-medium mt-3 flex items-center gap-1">
-                                    <CalendarDays className="w-4 h-4" /> Berakhir pada: {endDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+
+                            {/* Pro */}
+                            <div className="relative p-6 rounded-3xl border-2 border-gray-100 bg-white hover:border-primary-200 hover:shadow-lg transition-all group">
+                                <div className="absolute top-0 right-6 -translate-y-1/2 bg-primary-900 text-accent-400 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md">
+                                    Segera Hadir
+                                </div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <Star className="w-5 h-5 text-primary-600" />
+                                    <h4 className="font-black text-primary-900 text-xl">Pro</h4>
+                                </div>
+                                <p className="text-2xl font-black text-primary-900 mb-6">
+                                    Rp 249rb <span className="text-sm text-gray-400 font-bold">/ bln</span>
                                 </p>
+                                <ul className="space-y-2.5 mb-6">
+                                    {PRO_FEATURES.map((f, i) => (
+                                        <li key={i} className="flex items-start gap-2.5 text-sm font-medium text-gray-600">
+                                            <CheckCircle2 className="w-4 h-4 text-primary-400 shrink-0 mt-0.5" />
+                                            {f}
+                                        </li>
+                                    ))}
+                                </ul>
+                                <a
+                                    href="https://wa.me/6282100000000?text=Halo%20AppKasir%2C%20saya%20tertarik%20upgrade%20ke%20paket%20Pro"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full py-3 rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-2 bg-white text-primary-900 border border-primary-200 hover:bg-primary-50 active:scale-95 group-hover:border-primary-500"
+                                >
+                                    <MessageCircle className="w-4 h-4" /> Hubungi Kami untuk Upgrade
+                                </a>
                             </div>
                         </div>
-
-                        {diffDays <= 7 && (
-                            <div className="relative z-10 mt-6 bg-red-500/20 border border-red-500/50 rounded-2xl p-4 flex items-start gap-3 text-red-100 backdrop-blur-sm">
-                                <AlertTriangle className="w-6 h-6 shrink-0 text-red-400" />
-                                <div>
-                                    <p className="font-bold">Masa Layanan Hampir Berakhir</p>
-                                    <p className="text-sm opacity-80 mt-1 leading-relaxed">Sistem kasir Anda akan dikunci otomatis jika tagihan belum dibayarkan pada hari jatuh tempo. Pastikan untuk segera upgrade paket.</p>
-                                </div>
-                            </div>
-                        )}
                     </div>
 
-                    <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm p-8">
-                        <h3 className="font-black text-primary-900 text-lg mb-6 flex items-center gap-2">
-                            <Building2 className="w-5 h-5 text-gray-400" /> Pilihan Paket Langganan
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {packages.map(pkg => (
-                                <div key={pkg.name} className={`relative p-6 rounded-3xl border-2 transition-all group ${pkg.isCurrent ? 'border-primary-900 bg-primary-50/50' : 'border-gray-100 bg-white hover:border-gray-200 hover:shadow-lg'}`}>
-                                    {pkg.isCurrent && (
-                                        <div className="absolute top-0 right-6 -translate-y-1/2 bg-primary-900 text-accent-400 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md">
-                                            Paket Saat Ini
-                                        </div>
-                                    )}
-                                    <h4 className="font-black text-primary-900 text-xl mb-1">{pkg.name}</h4>
-                                    <p className="text-primary-600 font-bold mb-6">{pkg.price}</p>
-                                    <ul className="space-y-3 mb-8">
-                                        {pkg.features.map((f, i) => (
-                                            <li key={i} className="flex items-start gap-3 text-sm font-medium text-gray-600 leading-tight">
-                                                <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
-                                                {f}
-                                            </li>
-                                        ))}
-                                    </ul>
-
-                                    <button
-                                        disabled={pkg.isCurrent}
-                                        onClick={() => alert('Simulasi: Diarahkan ke Payment Gateway (Midtrans/Xendit)')}
-                                        className={`w-full py-4 rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-2 ${pkg.isCurrent ? 'bg-primary-900 text-white opacity-50 cursor-not-allowed' : 'bg-white text-primary-900 border border-primary-200 hover:bg-primary-50 active:scale-95'}`}
-                                    >
-                                        {pkg.isCurrent ? 'Terpilih' : 'Upgrade Paket'} <ArrowUpRight className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            ))}
+                    {/* Catatan */}
+                    <div className="bg-blue-50 border border-blue-100 rounded-3xl p-6 flex items-start gap-4">
+                        <div className="w-10 h-10 bg-blue-100 rounded-2xl flex items-center justify-center shrink-0">
+                            <ArrowUpRight className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div>
+                            <p className="font-black text-blue-900 mb-1">Butuh fitur lebih?</p>
+                            <p className="text-sm font-medium text-blue-700 leading-relaxed">
+                                Paket berbayar sedang dalam pengembangan. Hubungi tim AppKasir via WhatsApp untuk mendapatkan akses early access Paket Pro dengan harga spesial.
+                            </p>
                         </div>
                     </div>
                 </div>
 
-                {/* Kanan: Histori Tagihan (1 Kolom) */}
-                <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm flex flex-col h-full max-h-[800px] overflow-hidden">
+                {/* ── Histori Tagihan ──────────────────────────────────── */}
+                <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm flex flex-col overflow-hidden">
                     <div className="p-8 border-b bg-gray-50/50 shrink-0">
                         <h3 className="font-black text-primary-900 text-lg">Histori Tagihan</h3>
-                        <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-widest">Daftar Invoice Terbit</p>
+                        <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-widest">Invoice Terbit</p>
                     </div>
-                    <div className="flex-1 overflow-y-auto">
+                    <div className="flex-1">
                         {invoices.length > 0 ? (
                             <div className="divide-y divide-gray-50">
                                 {invoices.map((inv) => (
@@ -127,9 +160,7 @@ export default function SubscriptionClient({ tenant, initialInvoices }) {
                                             <div className="bg-gray-100 p-2 rounded-xl text-primary-900">
                                                 <FileText className="w-5 h-5" />
                                             </div>
-                                            <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase ${inv.status === 'Paid' ? 'bg-green-100 text-green-600' :
-                                                inv.status === 'Unpaid' ? 'bg-orange-100 text-orange-600' : 'bg-red-100 text-red-600'
-                                                }`}>
+                                            <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase ${inv.status === 'Paid' ? 'bg-green-100 text-green-600' : inv.status === 'Unpaid' ? 'bg-orange-100 text-orange-600' : 'bg-red-100 text-red-600'}`}>
                                                 {inv.status}
                                             </span>
                                         </div>
@@ -137,7 +168,7 @@ export default function SubscriptionClient({ tenant, initialInvoices }) {
                                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{inv.plan_name} - {inv.billing_cycle}</p>
                                         <div className="mt-4 flex justify-between items-end">
                                             <div>
-                                                <p className="text-[10px] font-black text-gray-400 uppercase mb-0.5">Total Bayar</p>
+                                                <p className="text-[10px] font-black text-gray-400 uppercase mb-0.5">Total</p>
                                                 <p className="text-lg font-black text-primary-900">Rp {Number(inv.total_amount).toLocaleString('id-ID')}</p>
                                             </div>
                                             <button className="text-primary-900 hover:text-accent-600 transition-colors">
@@ -148,18 +179,27 @@ export default function SubscriptionClient({ tenant, initialInvoices }) {
                                 ))}
                             </div>
                         ) : (
-                            <div className="h-full p-8 text-center flex flex-col items-center justify-center min-h-[300px]">
-                                <div className="w-16 h-16 bg-gray-50 text-gray-300 rounded-full flex items-center justify-center mb-4 border-2 border-dashed border-gray-200">
-                                    <ExternalLink className="w-8 h-8" />
+                            <div className="h-full p-8 text-center flex flex-col items-center justify-center min-h-[250px]">
+                                <div className="w-16 h-16 bg-green-50 text-green-400 rounded-full flex items-center justify-center mb-4 border-2 border-green-100">
+                                    <Gift className="w-8 h-8" />
                                 </div>
-                                <p className="font-bold text-gray-600">Belum ada tagihan.</p>
-                                <p className="text-sm font-medium text-gray-400 mt-2 max-w-[200px]">Invoice pertama Anda akan muncul setelah masa Trial berakhir.</p>
+                                <p className="font-bold text-gray-700">Paket Gratis Aktif</p>
+                                <p className="text-sm font-medium text-gray-400 mt-2 max-w-[200px] leading-relaxed">
+                                    Tidak ada tagihan. Invoice akan muncul jika Anda upgrade ke paket berbayar.
+                                </p>
                             </div>
                         )}
+                    </div>
+
+                    {/* Info akun */}
+                    <div className="p-6 border-t bg-gray-50/50">
+                        <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
+                            <CalendarDays className="w-4 h-4 text-gray-400" />
+                            Bergabung sejak {formattedDate}
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     );
 }
-
