@@ -47,23 +47,32 @@ export async function loginWithPin(userId, pin) {
 }
 
 export async function getActiveStaffUsers() {
-    // Karena kita perlu dropdown user di halaman login, ini adalah action untuk read
-    // Idealnya di SaaS nyata, ini akan difilter berdasarkan tenant subdomain (host url).
-    // Tapi karena ini local MVP, mari kita pull semua active user (atau limited ke tenant pertama)
-    const { data: users, error } = await dbAdmin
-        .from('staff_users')
-        .select('id, full_name, role')
-        .eq('is_active', true)
-        .order('full_name');
+    try {
+        const cookieStore = await cookies();
+        const tenantId = cookieStore.get('active_tenant_id')?.value;
 
-    if (error) return [];
-    return users;
+        // Jika tidak ada tenant aktif terdeteksi di browser, jangan tampilkan siapapun demi keamanan
+        if (!tenantId) {
+            return [];
+        }
+
+        const { data: users, error } = await dbAdmin
+            .from('staff_users')
+            .select('id, full_name, role')
+            .eq('is_active', true)
+            .eq('tenant_id', tenantId) // FILTER BERDASARKAN TENANT/USAHA
+            .order('full_name');
+
+        if (error) return [];
+        return users;
+    } catch (err) {
+        return [];
+    }
 }
 
 export async function logout() {
     const cookieStore = await cookies();
     cookieStore.delete('session_user_id');
-    cookieStore.delete('active_tenant_id');
-    cookieStore.delete('active_outlet_id');
+    // Kita tidak menghapus active_tenant_id agar terminal POS tetap teridentifikasi ke toko ini
     redirect('/');
 }

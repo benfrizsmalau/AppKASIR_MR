@@ -4,7 +4,7 @@ import {
     Store, Plus, MapPin, Phone, Mail, FileText,
     Settings2, ShieldCheck, CheckCircle2, XCircle,
     Edit3, Power, MoreVertical, X, Save, AlertCircle,
-    ChevronRight, ArrowRight
+    ChevronRight, ArrowRight, ChevronDown
 } from "lucide-react";
 import { useState } from "react";
 import { saveOutlet, toggleOutletStatus } from "../actions";
@@ -16,6 +16,7 @@ export default function CabangClient({ initialOutlets, subscriptionPlan }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingOutlet, setEditingOutlet] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [expandedOutlet, setExpandedOutlet] = useState(null);
 
     const limits = {
         'Starter': 1,
@@ -27,6 +28,11 @@ export default function CabangClient({ initialOutlets, subscriptionPlan }) {
         setEditingOutlet(outlet ? { ...outlet } : {
             name: "",
             address: "",
+            village: "",
+            district: "",
+            regency: "",
+            province: "",
+            postal_code: "",
             phone: "",
             email: "",
             npwpd: "",
@@ -87,89 +93,133 @@ export default function CabangClient({ initialOutlets, subscriptionPlan }) {
                 </div>
             </header>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                {initialOutlets.map((outlet) => (
-                    <div key={outlet.id} className="bg-white rounded-[40px] border border-gray-100 shadow-sm hover:shadow-xl transition-all overflow-hidden group">
-                        <div className="p-8 flex flex-col md:flex-row gap-8">
-                            <div className="w-full md:w-48 h-48 rounded-[32px] bg-gray-50 flex items-center justify-center shrink-0 border border-gray-100 relative overflow-hidden">
-                                {outlet.logo_url ? (
-                                    <img src={outlet.logo_url} alt={outlet.name} className="w-full h-full object-cover" />
-                                ) : (
-                                    <Store className="w-16 h-16 text-gray-200" />
-                                )}
-                                <div className={`absolute top-4 left-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${outlet.is_active ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
-                                    <div className={`w-1.5 h-1.5 rounded-full ${outlet.is_active ? 'bg-white animate-pulse' : 'bg-white'}`} />
-                                    {outlet.is_active ? 'Aktif' : 'Nonaktif'}
+            <div className="space-y-4 max-w-6xl mx-auto">
+                {initialOutlets.map((outlet) => {
+                    const isExpanded = expandedOutlet === outlet.id;
+                    return (
+                        <div key={outlet.id} className="bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden group">
+                            {/* Baris Utama - List Header */}
+                            <div 
+                                onClick={() => setExpandedOutlet(isExpanded ? null : outlet.id)}
+                                className="p-6 flex flex-col md:flex-row items-center gap-6 cursor-pointer hover:bg-gray-50/50 transition-colors"
+                            >
+                                {/* Mini Logo / Icon */}
+                                <div className="w-14 h-14 rounded-2xl bg-primary-50 flex items-center justify-center shrink-0 border border-primary-100/50">
+                                    {outlet.logo_url ? (
+                                        <img src={outlet.logo_url} alt="" className="w-full h-full object-cover rounded-2xl" />
+                                    ) : (
+                                        <Store className="w-7 h-7 text-primary-400" />
+                                    )}
                                 </div>
-                            </div>
 
-                            <div className="flex-1 space-y-4">
-                                <div className="flex justify-between items-start">
+                                {/* Info Ringkas */}
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-3 flex-wrap">
+                                        <h3 className="text-xl font-bold text-primary-950 leading-tight">{outlet.name}</h3>
+                                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest ${outlet.is_active ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                                            {outlet.is_active ? 'Aktif' : 'Nonaktif'}
+                                        </span>
+                                    </div>
+                                    <p className="text-sm font-medium text-gray-400 mt-1 truncate">
+                                        <MapPin className="w-4 h-4 inline mr-1" /> 
+                                        {outlet.address || 'Alamat belum diatur'}
+                                        {outlet.regency ? `, ${outlet.regency}` : ''}
+                                    </p>
+                                </div>
+
+                                {/* Status Pajak Ringkas (Desktop Only) */}
+                                <div className="hidden lg:flex items-center gap-6 px-6 border-l border-gray-100">
                                     <div>
-                                        <h3 className="text-2xl font-black text-primary-900 leading-tight">{outlet.name}</h3>
-                                        <p className="text-sm font-medium text-gray-400 mt-1 flex items-center gap-1">
-                                            <MapPin className="w-4 h-4" /> {outlet.address || 'Alamat belum diatur'}
-                                        </p>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Pajak PBJT</p>
+                                        <p className="text-sm font-bold text-primary-900">{outlet.pbjt_active ? `${outlet.pbjt_rate}%` : 'Off'}</p>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => handleOpenModal(outlet)}
-                                            className="p-3 bg-gray-50 text-gray-400 rounded-2xl hover:bg-primary-900 hover:text-accent-400 transition-all border border-transparent"
-                                        >
-                                            <Edit3 className="w-5 h-5" />
-                                        </button>
-                                        <button
-                                            onClick={() => onToggleStatus(outlet.id, outlet.is_active)}
-                                            className={`p-3 rounded-2xl transition-all border border-transparent ${outlet.is_active ? 'bg-red-50 text-red-400 hover:bg-red-500 hover:text-white' : 'bg-green-50 text-green-400 hover:bg-green-500 hover:text-white'}`}
-                                        >
-                                            <Power className="w-5 h-5" />
-                                        </button>
+                                    <div className={isExpanded ? 'rotate-180 transition-transform duration-300' : 'transition-transform duration-300'}>
+                                        <ChevronDown className="w-5 h-5 text-gray-300" />
                                     </div>
                                 </div>
+                            </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Pajak PBJT</p>
-                                        <div className="flex items-center gap-2">
-                                            <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase ${outlet.pbjt_active ? 'bg-green-500 text-white' : 'bg-gray-300 text-white'}`}>
-                                                {outlet.pbjt_active ? 'Aktif' : 'Off'}
-                                            </span>
-                                            <span className="text-sm font-black text-primary-900">{outlet.pbjt_rate}% ({outlet.pbjt_mode})</span>
+                            {/* Efek Rollout - Detail Konten */}
+                            <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isExpanded ? 'max-h-[800px] border-t border-gray-50' : 'max-h-0'}`}>
+                                <div className="p-8 bg-gray-50/30">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                        {/* Kolom 1: Alamat Detil */}
+                                        <div className="space-y-4">
+                                            <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                                <MapPin className="w-4 h-4" /> Alamat Lengkap
+                                            </h4>
+                                            <div className="text-sm font-bold text-primary-950 leading-relaxed space-y-1">
+                                                <p>{outlet.address || '-'}</p>
+                                                <p className="text-gray-500">
+                                                    {outlet.village ? `${outlet.village}, ` : ''}
+                                                    {outlet.district ? `${outlet.district}` : ''}
+                                                </p>
+                                                <p className="text-gray-500">
+                                                    {outlet.regency ? `${outlet.regency}, ` : ''}
+                                                    {outlet.province ? `${outlet.province}` : ''}
+                                                </p>
+                                                {outlet.postal_code && <p className="text-gray-400">Kode Pos: {outlet.postal_code}</p>}
+                                            </div>
+                                        </div>
+
+                                        {/* Kolom 2: Kontak & Legalitas */}
+                                        <div className="space-y-6">
+                                            <div className="space-y-3">
+                                                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                                    <Phone className="w-4 h-4" /> Kontak Operasional
+                                                </h4>
+                                                <div className="text-sm font-bold text-primary-950">
+                                                    <p className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-gray-400" /> {outlet.phone || '-'}</p>
+                                                    <p className="flex items-center gap-2 mt-1"><Mail className="w-3.5 h-3.5 text-gray-400" /> {outlet.email || '-'}</p>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-3">
+                                                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                                    <ShieldCheck className="w-4 h-4" /> Identitas Legal
+                                                </h4>
+                                                <div className="text-[11px] font-bold text-primary-950 space-y-1">
+                                                    <p><span className="text-gray-400 uppercase mr-2">NPWPD:</span> {outlet.npwpd || '-'}</p>
+                                                    <p><span className="text-gray-400 uppercase mr-2">NIB:</span> {outlet.nib || '-'}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Kolom 3: Konfigurasi & Aksi */}
+                                        <div className="space-y-6">
+                                            <div className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm space-y-4">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">PBJT ({outlet.pbjt_mode})</span>
+                                                    <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase ${outlet.pbjt_active ? 'bg-green-500 text-white' : 'bg-gray-300 text-white'}`}>
+                                                        {outlet.pbjt_active ? 'Aktif' : 'Nonaktif'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Service Charge</span>
+                                                    <p className="text-xs font-black text-primary-900">{outlet.service_charge_active ? `${outlet.service_charge_rate}%` : '0%'}</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex gap-2">
+                                                <button 
+                                                    onClick={() => handleOpenModal(outlet)}
+                                                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-primary-900 text-accent-400 rounded-xl font-black text-xs hover:bg-primary-800 transition-all active:scale-95 shadow-md"
+                                                >
+                                                    <Edit3 className="w-4 h-4" /> Edit Detail
+                                                </button>
+                                                <button 
+                                                    onClick={() => onToggleStatus(outlet.id, outlet.is_active)}
+                                                    className={`w-12 h-12 flex items-center justify-center rounded-xl border transition-all active:scale-95 ${outlet.is_active ? 'border-red-100 text-red-400 hover:bg-red-50' : 'border-green-100 text-green-400 hover:bg-green-50'}`}
+                                                >
+                                                    <Power className="w-5 h-5" />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Service Charge</p>
-                                        <div className="flex items-center gap-2">
-                                            <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase ${outlet.service_charge_active ? 'bg-blue-500 text-white' : 'bg-gray-300 text-white'}`}>
-                                                {outlet.service_charge_active ? 'Aktif' : 'Off'}
-                                            </span>
-                                            <span className="text-sm font-black text-primary-900">{outlet.service_charge_rate}%</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-wrap gap-4 pt-2">
-                                    {outlet.phone && (
-                                        <div className="flex items-center gap-2 text-xs font-bold text-gray-500 bg-white border border-gray-100 px-3 py-1.5 rounded-xl">
-                                            <Phone className="w-3.5 h-3.5" /> {outlet.phone}
-                                        </div>
-                                    )}
-                                    {outlet.email && (
-                                        <div className="flex items-center gap-2 text-xs font-bold text-gray-500 bg-white border border-gray-100 px-3 py-1.5 rounded-xl">
-                                            <Mail className="w-3.5 h-3.5" /> {outlet.email}
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                         </div>
-                        <div className="bg-primary-900/5 px-8 py-4 border-t border-gray-50 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <span className="text-xs font-bold text-primary-900/40">ID: {outlet.id}</span>
-                            <button className="text-sm font-black text-primary-900 flex items-center gap-1 hover:gap-2 transition-all">
-                                Atur Detail Operasional <ChevronRight className="w-4 h-4" />
-                            </button>
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
 
                 {initialOutlets.length === 0 && (
                     <div className="col-span-full py-20 bg-white rounded-[40px] border-4 border-dashed border-gray-100 flex flex-col items-center justify-center text-center">
@@ -217,8 +267,28 @@ export default function CabangClient({ initialOutlets, subscriptionPlan }) {
                                         <input required type="text" value={editingOutlet.name || ""} onChange={e => setEditingOutlet({ ...editingOutlet, name: e.target.value })} className="w-full bg-gray-50 rounded-2xl p-4 border border-gray-100 focus:bg-white focus:ring-4 ring-primary-900/5 transition-all outline-none font-bold text-primary-950" placeholder="Contoh: AppKasir Sudirman" />
                                     </div>
                                     <div className="md:col-span-2">
-                                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Alamat Lengkap</label>
+                                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Alamat Jalan / Lokasi</label>
                                         <textarea rows={2} value={editingOutlet.address || ""} onChange={e => setEditingOutlet({ ...editingOutlet, address: e.target.value })} className="w-full bg-gray-50 rounded-2xl p-4 border border-gray-100 focus:bg-white outline-none font-bold text-primary-950" placeholder="Jln. Raya No..." />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Kelurahan / Desa</label>
+                                        <input type="text" value={editingOutlet.village || ""} onChange={e => setEditingOutlet({ ...editingOutlet, village: e.target.value })} className="w-full bg-gray-50 rounded-2xl p-4 border border-gray-100 focus:bg-white outline-none font-bold text-primary-950" placeholder="Kel. Gambir" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Kecamatan</label>
+                                        <input type="text" value={editingOutlet.district || ""} onChange={e => setEditingOutlet({ ...editingOutlet, district: e.target.value })} className="w-full bg-gray-50 rounded-2xl p-4 border border-gray-100 focus:bg-white outline-none font-bold text-primary-950" placeholder="Kec. Menteng" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Kabupaten / Kota</label>
+                                        <input type="text" value={editingOutlet.regency || ""} onChange={e => setEditingOutlet({ ...editingOutlet, regency: e.target.value })} className="w-full bg-gray-50 rounded-2xl p-4 border border-gray-100 focus:bg-white outline-none font-bold text-primary-950" placeholder="Jakarta Pusat" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Provinsi</label>
+                                        <input type="text" value={editingOutlet.province || ""} onChange={e => setEditingOutlet({ ...editingOutlet, province: e.target.value })} className="w-full bg-gray-50 rounded-2xl p-4 border border-gray-100 focus:bg-white outline-none font-bold text-primary-950" placeholder="DKI Jakarta" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Kode Pos</label>
+                                        <input type="text" value={editingOutlet.postal_code || ""} onChange={e => setEditingOutlet({ ...editingOutlet, postal_code: e.target.value })} className="w-full bg-gray-50 rounded-2xl p-4 border border-gray-100 focus:bg-white outline-none font-bold text-primary-950" placeholder="10110" />
                                     </div>
                                     <div>
                                         <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Telepon</label>

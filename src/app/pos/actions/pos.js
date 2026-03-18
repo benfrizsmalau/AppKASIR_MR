@@ -68,7 +68,7 @@ export async function getPOSData() {
         // 3. Fetch Outlet Data (For Tax Rules & Print Header)
         const { data: outlet, error: outletErr } = await dbAdmin
             .from('outlets')
-            .select('name, address, phone, email, npwpd, pbjt_active, pbjt_rate, pbjt_mode, service_charge_active, service_charge_rate')
+            .select('name, address, village, district, regency, province, postal_code, phone, email, npwpd, pbjt_active, pbjt_rate, pbjt_mode, service_charge_active, service_charge_rate')
             .eq('id', outlet_id)
             .single();
 
@@ -98,7 +98,7 @@ export async function getPOSData() {
         const categoryNames = ['Semua', ...categories.map(c => c.name)];
 
         // Profile completeness check
-        const REQUIRED_FIELDS = ['name', 'address', 'phone', 'email', 'npwpd'];
+        const REQUIRED_FIELDS = ['name', 'address', 'regency', 'province', 'phone', 'email', 'npwpd'];
         const profileComplete = REQUIRED_FIELDS.every(f => outlet?.[f] && String(outlet[f]).trim().length > 0);
         const missingFields = REQUIRED_FIELDS.filter(f => !outlet?.[f] || String(outlet[f]).trim().length === 0);
 
@@ -110,6 +110,11 @@ export async function getPOSData() {
             outletData: {
                 name: outlet.name,
                 address: outlet.address,
+                village: outlet.village,
+                district: outlet.district,
+                regency: outlet.regency,
+                province: outlet.province,
+                postalCode: outlet.postal_code,
                 phone: outlet.phone,
                 npwpd: outlet.npwpd,
                 pbjtActive: outlet.pbjt_active,

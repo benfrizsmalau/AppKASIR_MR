@@ -91,8 +91,7 @@ export async function processOwnerSignOut() {
     try {
         const cookieStore = await cookies();
         cookieStore.delete('session_user_id');
-        cookieStore.delete('active_tenant_id');
-        cookieStore.delete('active_outlet_id');
+        // Identitas toko tetap disimpan agar login staff tetap muncul
         return { success: true };
     } catch (err) {
         return { success: false };

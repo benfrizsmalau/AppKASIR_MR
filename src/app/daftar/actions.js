@@ -2,6 +2,7 @@
 
 import { dbAdmin } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
+import { cookies } from 'next/headers';
 
 export async function checkSubdomain(subdomain) {
     try {
@@ -34,7 +35,10 @@ export async function checkEmailExists(email) {
 
 export async function proceedRegistration(payload) {
     try {
-        const { name, email, phone, password, businessName, businessType, province, city, subdomain } = payload;
+        const { 
+            name, email, phone, password, businessName, businessType, subdomain,
+            address, village, district, regency, province, postalCode 
+        } = payload;
 
         // Validasi email belum terdaftar
         const { exists } = await checkEmailExists(email);
@@ -67,6 +71,12 @@ export async function proceedRegistration(payload) {
             name: `${businessName} - Pusat`,
             phone: phone,
             email: email,
+            address: address,
+            village: village,
+            district: district,
+            regency: regency,
+            province: province,
+            postal_code: postalCode,
             pbjt_active: true,
             pbjt_rate: 10,
             pbjt_mode: 'Eksklusif',
@@ -86,6 +96,11 @@ export async function proceedRegistration(payload) {
         });
 
         if (userErr) throw userErr;
+
+        // Set identification cookies agar langsung terdeteksi di login page
+        const cookieStore = await cookies();
+        cookieStore.set('active_tenant_id', tenant.id, { path: '/', maxAge: 60 * 60 * 24 * 30 });
+        cookieStore.set('active_outlet_id', outlet.id, { path: '/', maxAge: 60 * 60 * 24 * 30 });
 
         return {
             success: true,

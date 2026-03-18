@@ -14,7 +14,9 @@ export default function SignUpClient() {
     const [errorMsg, setErrorMsg] = useState('');
     const [form, setForm] = useState({
         name: '', email: '', phone: '', password: '', confirmPassword: '',
-        businessName: '', businessType: 'Restoran', province: 'DKI Jakarta', city: 'Jakarta Selatan', subdomain: '',
+        businessName: '', businessType: 'Restoran', 
+        address: '', village: '', district: '', regency: '', province: '', postalCode: '',
+        subdomain: '',
     });
     const [subdomainError, setSubdomainError] = useState('');
 
@@ -258,7 +260,8 @@ export default function SignUpClient() {
                                 <p className="text-[10px] text-gray-400 mt-1.5 italic">3–30 karakter, hanya huruf kecil, angka, dan tanda hubung.</p>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-5">
+                            {/* Baris 3: Jenis Usaha & Alamat Jalan */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 <div>
                                     <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Jenis Usaha</label>
                                     <select value={form.businessType} onChange={e => setForm({ ...form, businessType: e.target.value })} className="w-full bg-white rounded-xl p-3.5 border border-gray-200 outline-none font-bold text-gray-800 appearance-none">
@@ -270,18 +273,39 @@ export default function SignUpClient() {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Provinsi</label>
-                                    <select value={form.province} onChange={e => setForm({ ...form, province: e.target.value })} className="w-full bg-white rounded-xl p-3.5 border border-gray-200 outline-none font-bold text-gray-800 appearance-none">
-                                        <option>DKI Jakarta</option>
-                                        <option>Jawa Barat</option>
-                                        <option>Jawa Tengah</option>
-                                        <option>Jawa Timur</option>
-                                        <option>Bali</option>
-                                        <option>Sulawesi Selatan</option>
-                                        <option>Sumatera Utara</option>
-                                        <option>Kalimantan Timur</option>
-                                    </select>
+                                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Alamat Jalan / Lokasi</label>
+                                    <input required type="text" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="w-full bg-white rounded-xl p-3.5 border border-gray-200 outline-none font-bold text-gray-800" placeholder="Jl. Merdeka No. 123" />
                                 </div>
+                            </div>
+
+                            {/* Baris 4: Kelurahan & Kecamatan */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Kelurahan / Desa</label>
+                                    <input required type="text" value={form.village} onChange={e => setForm({ ...form, village: e.target.value })} className="w-full bg-white rounded-xl p-3.5 border border-gray-200 outline-none font-bold text-gray-800" placeholder="Kel. Gambir" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Kecamatan</label>
+                                    <input required type="text" value={form.district} onChange={e => setForm({ ...form, district: e.target.value })} className="w-full bg-white rounded-xl p-3.5 border border-gray-200 outline-none font-bold text-gray-800" placeholder="Kec. Menteng" />
+                                </div>
+                            </div>
+
+                            {/* Baris 5: Kabupaten/Kota & Provinsi */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Kabupaten / Kota</label>
+                                    <input required type="text" value={form.regency} onChange={e => setForm({ ...form, regency: e.target.value })} className="w-full bg-white rounded-xl p-3.5 border border-gray-200 outline-none font-bold text-gray-800" placeholder="Jakarta Pusat" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Provinsi</label>
+                                    <input required type="text" value={form.province} onChange={e => setForm({ ...form, province: e.target.value })} className="w-full bg-white rounded-xl p-3.5 border border-gray-200 outline-none font-bold text-gray-800" placeholder="DKI Jakarta" />
+                                </div>
+                            </div>
+
+                            {/* Baris 6: Kode Pos */}
+                            <div className="w-full md:w-1/2">
+                                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Kode Pos</label>
+                                <input required type="text" value={form.postalCode} onChange={e => setForm({ ...form, postalCode: e.target.value })} className="w-full bg-white rounded-xl p-3.5 border border-gray-200 outline-none font-bold text-gray-800" placeholder="10110" />
                             </div>
                         </div>
 

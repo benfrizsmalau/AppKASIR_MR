@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, User, TerminalSquare, AlertCircle } from "lucide-react";
+import { Lock, User, TerminalSquare, AlertCircle, ArrowRight } from "lucide-react";
 import { loginWithPin } from "./actions/auth";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function LoginForm({ users = [] }) {
     const [pin, setPin] = useState("");
@@ -106,12 +107,23 @@ export default function LoginForm({ users = [] }) {
                                         onChange={(e) => setSelectedUser(e.target.value)}
                                         className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all sm:text-sm bg-gray-50 focus:bg-white appearance-none cursor-pointer"
                                     >
-                                        {users.length === 0 && <option value="">Memuat pengguna...</option>}
+                                        {users.length === 0 && <option value="">--- Pilih Toko Dulu ---</option>}
                                         {users.map(u => (
                                             <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>
                                         ))}
                                     </select>
                                 </div>
+                                {users.length === 0 && (
+                                    <div className="mt-4 p-4 bg-amber-50 border border-amber-100 rounded-2xl flex flex-col gap-3">
+                                        <p className="text-xs font-bold text-amber-800 leading-relaxed text-center">
+                                            Sistem tidak mendeteksi Toko yang aktif di browser ini. 
+                                            Harap login sebagai <span className="text-primary-900 underline">Admin Utama</span> terlebih dahulu untuk mengidentifikasi toko Anda.
+                                        </p>
+                                        <Link href="/masuk" className="w-full py-2 bg-amber-500 text-white rounded-xl text-center text-xs font-black uppercase tracking-widest hover:bg-amber-600 transition-all shadow-md active:scale-95">
+                                            Login Admin Utama Disini
+                                        </Link>
+                                    </div>
+                                )}
                             </div>
 
                             <div>
@@ -146,13 +158,13 @@ export default function LoginForm({ users = [] }) {
                         </button>
                     </form>
 
-                    <div className="mt-8 pt-6 border-t border-gray-100 flex items-center justify-between">
-                        <button className="text-sm font-medium text-primary-600 hover:text-primary-800 transition-colors">
-                            Login Admin Utama
-                        </button>
-                        <button className="text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors">
+                    <div className="mt-8 pt-6 border-t border-gray-100 flex items-center justify-between font-bold">
+                        <Link href="/masuk" className="text-sm text-primary-600 hover:text-primary-800 transition-colors flex items-center gap-1">
+                            <ArrowRight className="w-4 h-4" /> Buka Portal Admin Utama
+                        </Link>
+                        <Link href="/lupa-pin" className="text-sm text-gray-500 hover:text-gray-800 transition-colors">
                             Lupa PIN?
-                        </button>
+                        </Link>
                     </div>
                 </div>
             </div>

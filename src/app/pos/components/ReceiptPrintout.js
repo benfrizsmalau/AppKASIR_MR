@@ -74,9 +74,18 @@ export default function ReceiptPrintout({ data }) {
                 ) : (
                     <>
                         <h2 className="receipt-title font-bold">{outlet?.name || 'OUTLET NAME'}</h2>
-                        <p>{outlet?.address || '-'}</p>
-                        <p>{outlet?.phone || '-'}</p>
-                        {outlet?.npwpd && <p>NPWPD: {outlet.npwpd}</p>}
+                        <div style={{ fontSize: '9pt', lineHeight: '1.2' }}>
+                            <p>{outlet?.address || '-'}</p>
+                            {outlet?.village && outlet?.district && (
+                                <p>{outlet.village}, {outlet.district}</p>
+                            )}
+                            {outlet?.regency && outlet?.province && (
+                                <p>{outlet.regency}, {outlet.province}</p>
+                            )}
+                            {outlet?.postalCode && <p>KODE POS: {outlet.postalCode}</p>}
+                            <p>T: {outlet?.phone || '-'}</p>
+                            {outlet?.npwpd && <p>NPWPD: {outlet.npwpd}</p>}
+                        </div>
                     </>
                 )}
             </div>

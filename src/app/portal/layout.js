@@ -69,8 +69,7 @@ export default async function PortalLayout({ children }) {
                         'use server';
                         const cookieStore = await cookies();
                         cookieStore.delete('session_user_id');
-                        cookieStore.delete('active_tenant_id');
-                        cookieStore.delete('active_outlet_id');
+                        // Kita pertahankan active_tenant_id agar browser tetap mengenali toko ini
                         redirect('/masuk');
                     }}>
                         <button type="submit" className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-gray-400 hover:bg-red-500/10 hover:text-red-400 transition-all">
