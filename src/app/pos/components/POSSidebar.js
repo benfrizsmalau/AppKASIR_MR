@@ -29,10 +29,13 @@ const ALL_NAV_ITEMS = [
 export default function POSSidebar({ userRole }) {
     const pathname = usePathname();
 
+    // Sembunyikan sidebar khusus untuk halaman pelaporan SPTPD agar clean (sesuai request)
+    if (pathname?.includes('/pos/reports/sptpd')) return null;
+
     const navItems = ALL_NAV_ITEMS.filter(item => hasAccess(userRole || 'Kasir', item.minRole));
 
     return (
-        <aside className="w-20 lg:w-24 bg-primary-900 text-white flex flex-col items-center py-6 hidden md:flex shrink-0 z-20 shadow-2xl">
+        <aside className="w-20 lg:w-24 bg-primary-900 text-white flex flex-col items-center py-6 hidden md:flex shrink-0 z-20 shadow-2xl print:hidden">
             <div className="w-12 h-12 bg-accent-500 rounded-xl flex items-center justify-center font-bold text-xl mb-8 shadow-lg shadow-accent-500/30">
                 AK
             </div>

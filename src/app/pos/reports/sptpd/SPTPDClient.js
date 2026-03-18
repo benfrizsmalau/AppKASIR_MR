@@ -201,13 +201,52 @@ export default function SPTPDClient({ data }) {
                 <LampiranStruk data={data} />
             </div>
 
-            {/* CSS Print */}
+            {/* CSS Print & Layout Optimization for F4 (HVS/Folio) */}
             <style>{`
                 @media print {
-                    @page { size: A4 portrait; margin: 20mm 20mm 20mm 25mm; }
-                    body { background: white !important; }
-                    .sptpd-page { page-break-after: always; }
-                    .sptpd-page:last-child { page-break-after: avoid; }
+                    @page { 
+                        size: 215mm 330mm; 
+                        margin: 8mm 15mm 8mm 15mm; 
+                    }
+                    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                    body { 
+                        background: white !important; 
+                        font-family: 'Times New Roman', serif !important;
+                        font-size: 9.5pt !important;
+                        line-height: 1.2 !important;
+                    }
+                    .sptpd-wrap { margin: 0 !important; width: 100% !important; max-width: none !important; display: block !important; }
+                    .sptpd-page { 
+                        display: block;
+                        break-after: page; 
+                        page-break-after: always;
+                        width: 100% !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        border: none !important;
+                        box-shadow: none !important;
+                        overflow: visible !important;
+                    }
+                    .sptpd-page:last-child { break-after: auto; page-break-after: auto; }
+                    
+                    /* Table stabilization */
+                    table { page-break-inside: auto; border-collapse: collapse !important; width: 100% !important; }
+                    tr { page-break-inside: avoid; page-break-after: auto; }
+                    
+                    /* Element-specific compression for F4 */
+                    .form-box { padding: 4px 6px !important; }
+                    .kop-text { line-height: 1.1 !important; }
+                    
+                    .print-hidden, .no-print { display: none !important; }
+                }
+
+                @media screen {
+                    .sptpd-page { 
+                        box-shadow: 0 10px 40px -10px rgba(0,0,0,0.15);
+                        border-radius: 4px;
+                        margin-bottom: 2rem;
+                    }
+                    .sptpd-wrap { margin-top: 1rem; }
                 }
             `}</style>
         </>
@@ -221,55 +260,49 @@ function SPTPDLembar({ label, data, fields, setField, editMode, totalDPP, pajakT
     const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 
     return (
-        <div className="sptpd-page bg-white mt-6 print:mt-0 shadow-sm border border-gray-200 print:border-none print:shadow-none" style={{ fontFamily: "'Times New Roman', serif", fontSize: '11pt', lineHeight: '1.5' }}>
+        <div className="sptpd-page bg-white mt-6 print:mt-0 shadow-sm border border-gray-200 print:border-none p-10 print:px-2 print:py-0" style={{ fontFamily: "'Times New Roman', serif", fontSize: '10pt' }}>
             {/* Label lembar */}
-            <div className="text-center py-1 bg-gray-100 print:bg-gray-100 border-b border-gray-300">
-                <span className="text-xs font-bold tracking-widest text-gray-600 uppercase">{label}</span>
+            <div className="text-center py-0.5 bg-gray-50 print:bg-gray-50 border-b border-gray-300">
+                <span className="text-[9px] font-bold tracking-widest text-gray-500 uppercase">{label}</span>
             </div>
 
-            <div className="p-8 print:p-0" style={{ border: '2px solid #000', margin: '0' }}>
+            <div className="p-5 print:p-2.5" style={{ border: '1.5px solid #000', margin: '0' }}>
 
                 {/* KOP SURAT */}
-                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2px' }}>
                     <tbody>
                         <tr>
-                            <td style={{ width: '80px', verticalAlign: 'middle', textAlign: 'center', padding: '4px' }}>
-                                {/* Logo placeholder */}
-                                <div style={{ width: '70px', height: '70px', border: '2px solid #555', borderRadius: '50%', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8pt', textAlign: 'center', fontWeight: 'bold', color: '#555' }}>
-                                    LOGO<br/>KAB.
-                                </div>
+                            <td style={{ width: '60px', verticalAlign: 'middle', textAlign: 'center', padding: '1px' }}>
+                                <div style={{ width: '50px', height: '50px', border: '1px solid #333', borderRadius: '50%', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '6pt', fontWeight: 'bold' }}>LOGO</div>
                             </td>
-                            <td style={{ textAlign: 'center', padding: '4px', verticalAlign: 'middle' }}>
-                                <div style={{ fontWeight: 'bold', fontSize: '12pt' }}>PEMERINTAH KABUPATEN MAMBERAMO RAYA</div>
-                                <div style={{ fontWeight: 'bold', fontSize: '11pt', marginTop: '2px' }}>BADAN PENGELOLAAN KEUANGAN DAN PENDAPATAN DAERAH</div>
-                                <div style={{ fontSize: '10pt', marginTop: '2px' }}>Jalan Poros Burmeso, Burmeso, Kabupaten Mamberamo Raya, Papua 99558</div>
-                                <div style={{ fontSize: '10pt' }}>Telepon: (0984) 21001 · Faksimile: (0984) 21002</div>
+                            <td style={{ textAlign: 'center', padding: '1px' }}>
+                                <div style={{ fontWeight: 'bold', fontSize: '11pt', lineHeight: '1.1' }}>PEMERINTAH KABUPATEN MAMBERAMO RAYA</div>
+                                <div style={{ fontWeight: 'bold', fontSize: '10pt', lineHeight: '1.1' }}>BADAN PENGELOLAAN KEUANGAN DAN PENDAPATAN DAERAH</div>
+                                <div style={{ fontSize: '8pt', color: '#333' }}>Jalan Poros Burmeso, Burmeso, Kabupaten Mamberamo Raya, Papua 99558</div>
                             </td>
                         </tr>
                     </tbody>
                 </table>
-                <hr style={{ borderTop: '3px solid #000', margin: '0 0 6px 0' }} />
-                <hr style={{ borderTop: '1px solid #000', margin: '0 0 8px 0' }} />
+                <hr style={{ borderTop: '2.5px solid #000', margin: '1px 0 3px 0' }} />
 
                 {/* JUDUL + Kepada */}
-                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '3px' }}>
                     <tbody>
                         <tr>
-                            <td style={{ width: '45%', verticalAlign: 'top', padding: '4px 8px' }}>
-                                <div style={{ fontWeight: 'bold', fontSize: '13pt', textAlign: 'center' }}>SURAT PEMBERITAHUAN PAJAK DAERAH</div>
-                                <div style={{ fontWeight: 'bold', fontSize: '13pt', textAlign: 'center' }}>( SPTPD )</div>
-                                <div style={{ fontWeight: 'bold', fontSize: '12pt', textAlign: 'center', marginTop: '4px' }}>PAJAK RESTORAN</div>
+                            <td style={{ width: '45%', verticalAlign: 'middle', textAlign: 'center' }}>
+                                <div style={{ fontWeight: 'bold', fontSize: '11pt' }}>SURAT PEMBERITAHUAN PAJAK DAERAH</div>
+                                <div style={{ fontWeight: 'bold', fontSize: '11pt' }}>( SPTPD )</div>
+                                <div style={{ fontWeight: 'bold', fontSize: '10pt', marginTop: '1px' }}>PAJAK RESTORAN</div>
                             </td>
-                            <td style={{ width: '55%', border: '1px solid #000', padding: '6px 10px', verticalAlign: 'top' }}>
-                                <div>Kepada Yth.</div>
-                                <div style={{ fontWeight: 'bold' }}>Kepala BPKPD Kabupaten Mamberamo Raya</div>
-                                <div style={{ borderTop: '1px solid #aaa', marginTop: '6px', paddingTop: '6px' }}>
+                            <td style={{ width: '55%', border: '1.5px solid #000', padding: '4px 8px', verticalAlign: 'top' }}>
+                                <div style={{ fontSize: '9pt' }}>Kepada Yth.</div>
+                                <div style={{ fontWeight: 'bold', fontSize: '9.5pt' }}>Kepala BPKPD Kabupaten Mamberamo Raya</div>
+                                <div style={{ borderTop: '1px solid #ccc', marginTop: '3px', paddingTop: '3px', fontSize: '9pt' }}>
                                     <table style={{ width: '100%' }}>
                                         <tbody>
-                                            <tr><td>Nama WP</td><td>:</td><td style={{ fontWeight: 'bold' }}>{data.namaWP}</td></tr>
+                                            <tr><td style={{ width: '60px' }}>Nama WP</td><td>:</td><td style={{ fontWeight: 'bold' }}>{data.namaWP}</td></tr>
                                             <tr><td>Alamat</td><td>:</td><td>{data.alamatWP}</td></tr>
-                                            <tr><td style={{ paddingTop: '4px' }}>Masa Pajak</td><td>:</td><td style={{ fontWeight: 'bold' }}>{BULAN[data.month - 1]} / {data.year}</td></tr>
-                                            <tr><td>di</td><td>:</td><td>Mamberamo Raya</td></tr>
+                                            <tr><td>Masa</td><td>:</td><td style={{ fontWeight: 'bold' }}>{BULAN[data.month - 1]} / {data.year}</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -279,25 +312,21 @@ function SPTPDLembar({ label, data, fields, setField, editMode, totalDPP, pajakT
                 </table>
 
                 {/* BOX PERHATIAN */}
-                <div style={{ border: '1px solid #000', padding: '6px 10px', marginBottom: '8px', fontSize: '10pt' }}>
-                    <strong>Perhatian :</strong>
-                    <ol style={{ margin: '4px 0 0 16px', padding: 0 }}>
-                        <li>Formulir diisi dalam rangkap 2 dan ditulis dengan huruf CETAK.</li>
-                        <li>Beri nomor pada kotak yang tersedia sesuai jawaban yang diberikan.</li>
-                        <li>Setelah diisi dan ditandatangani, harap diserahkan kepada BPKPD Kabupaten Mamberamo Raya paling lambat <strong>tanggal 15 bulan berikutnya</strong>.</li>
-                        <li>Keterlambatan penyerahan SPTPD dikenakan sanksi sesuai Peraturan Daerah yang berlaku.</li>
-                    </ol>
+                <div style={{ border: '1.2px solid #000', padding: '3px 6px', marginBottom: '5px', fontSize: '8.5pt' }}>
+                    <strong>Perhatian : </strong> 
+                    1. Isi dengan HURUF CETAK. 
+                    2. Diserahkan paling lambat <strong>tgl 15</strong> bulan berikutnya. 
+                    3. Keterlambatan dikenakan sanksi administrasi sesuai PERDA.
                 </div>
 
                 {/* SEKSI I — IDENTITAS WP */}
                 <SeksiHeader label="I. Identitas Wajib Pajak" />
-                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '6px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2px' }}>
                     <tbody>
                         <RowIdentitas label="a. Nama Wajib Pajak" value={data.namaWP} />
                         <RowIdentitas label="b. Alamat" value={data.alamatWP} />
-                        <RowIdentitas label="c. Nama Objek / Usaha" value={data.namaObjek} />
-                        <RowIdentitas label="d. Alamat Objek / Usaha" value={data.alamatObjek} />
-                        <RowIdentitas label="e. NPWPD" value={data.npwpd} />
+                        <RowIdentitas label="c. Objek / Usaha" value={data.namaObjek} />
+                        <RowIdentitas label="d. NPWPD" value={data.npwpd} />
                     </tbody>
                 </table>
 
@@ -305,19 +334,12 @@ function SPTPDLembar({ label, data, fields, setField, editMode, totalDPP, pajakT
                 <SeksiHeader label="II. Diisi Oleh Pengusaha Restoran" />
 
                 {/* Klasifikasi usaha */}
-                <div style={{ padding: '4px 8px', marginBottom: '4px', border: '1px solid #ddd', display: 'flex', gap: '8px', flexWrap: 'wrap', fontSize: '10pt' }}>
-                    <strong>a.</strong> Klasifikasi Usaha: &nbsp;
-                    {['Restoran', 'Kafe / Kafetaria', 'Rumah Makan / Warung', 'Kantin', 'Siap Saji', 'Katering', 'Lainnya'].map((k, i) => (
-                        <label key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: editMode ? 'pointer' : 'default' }}>
-                            <input
-                                type="radio"
-                                name={`klasifikasi-${label}`}
-                                checked={fields.klasifikasiUsaha === i}
-                                onChange={() => editMode && setField('klasifikasiUsaha', i)}
-                                readOnly={!editMode}
-                                style={{ accentColor: '#1e3a5f' }}
-                            />
-                            {i + 1}. {k}
+                <div style={{ padding: '3px 6px', marginBottom: '3px', border: '1px solid #ddd', display: 'flex', gap: '6px', fontSize: '9pt' }}>
+                    <strong>a. Klasifikasi:</strong> &nbsp;
+                    {['Restoran', 'Kafe', 'Warung', 'Fast Food', 'Lainnya'].map((k, i) => (
+                        <label key={i} style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                            <div style={{ width: '10px', height: '10px', border: '1px solid #000', textAlign: 'center', fontSize: '7pt', lineHeight: '8px' }}>{fields.klasifikasiUsaha === i ? 'X' : ''}</div>
+                            {k}
                         </label>
                     ))}
                 </div>
@@ -326,120 +348,40 @@ function SPTPDLembar({ label, data, fields, setField, editMode, totalDPP, pajakT
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <tbody>
                         <RowFinansial label="b. Pembayaran Makanan dan Minuman" value={data.pembayaranFnB} bold={false} />
-                        <RowFinansialEdit
-                            label="c. Pembayaran Lain-lain (minuman beralkohol, rokok, dll.)"
-                            value={fields.pembayaranLainnya}
-                            editMode={editMode}
-                            onChange={v => setField('pembayaranLainnya', v)}
-                            bold={false}
-                        />
+                        <RowFinansialEdit label="c. Pembayaran Lain-lain" value={fields.pembayaranLainnya} editMode={editMode} onChange={v => setField('pembayaranLainnya', v)} bold={false} />
                         <RowFinansial label="d. Dasar Pengenaan Pajak (DPP) = b + c" value={totalDPP} bold={true} />
                         <RowFinansial label={`e. Pajak Terutang = ${data.pbjtRate}% × DPP`} value={pajakTerutang} bold={true} />
-                        <RowFinansialEdit
-                            label="f. Kredit Pajak / Setoran Masa Lalu"
-                            value={fields.kreditPajak}
-                            editMode={editMode}
-                            onChange={v => setField('kreditPajak', v)}
-                            bold={false}
-                        />
                         <RowFinansial label="g. Pajak Kurang / Lebih Bayar = e − f" value={pajakKurangLebih} bold={true} />
-                        <RowFinansialEdit
-                            label="h. Sanksi Administrasi (jika terlambat)"
-                            value={fields.sanksiAdministrasi}
-                            editMode={editMode}
-                            onChange={v => setField('sanksiAdministrasi', v)}
-                            bold={false}
-                            highlight={isTerlambat}
-                        />
+                        <RowFinansialEdit label="h. Sanksi Administrasi (Keterlambatan)" value={fields.sanksiAdministrasi} editMode={editMode} onChange={v => setField('sanksiAdministrasi', v)} bold={false} highlight={isTerlambat} />
                         <RowFinansial label="i. Jumlah Pajak Yang Harus Dibayar = g + h" value={jumlahHarusBayar} bold={true} highlight={true} />
                     </tbody>
                 </table>
 
                 {/* Lampiran */}
-                <div style={{ marginTop: '8px', border: '1px solid #ddd', padding: '6px 10px', fontSize: '10pt' }}>
-                    <strong>j. Data Pendukung / Lampiran</strong>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '4px' }}>
-                        <thead>
-                            <tr style={{ background: '#f0f0f0' }}>
-                                <th style={{ padding: '3px 8px', border: '1px solid #ccc', textAlign: 'left' }}>Jenis Lampiran</th>
-                                <th style={{ padding: '3px 8px', border: '1px solid #ccc', textAlign: 'center', width: '120px' }}>Keterangan</th>
-                                <th style={{ padding: '3px 8px', border: '1px solid #ccc', textAlign: 'center', width: '80px' }}>Jml Hal.</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {[
-                                { key: 'sspd', label: 'a) Surat Setoran Pajak Daerah (SSPD)', hal: '-' },
-                                { key: 'rekapHarian', label: 'b) Rekapitulasi Penjualan / Omzet Harian', hal: '1' },
-                                { key: 'rekapStruk', label: 'c) Rekapitulasi Penggunaan Bon / Struk', hal: '1' },
-                                { key: 'laporanHarian', label: 'd) Laporan Harian AppKasir (auto-generate)', hal: `${Math.ceil(data.rekapHarian.length / 20) || 1}` },
-                                { key: 'bukuBesar', label: 'e) Buku Besar PBJT masa ini (auto-generate)', hal: `${Math.ceil(data.jurnalPBJT.length / 30) || 1}` },
-                                { key: 'lainnya', label: 'f) Dokumen pendukung lainnya', hal: '-' },
-                            ].map(item => (
-                                <tr key={item.key}>
-                                    <td style={{ padding: '3px 8px', border: '1px solid #ccc' }}>{item.label}</td>
-                                    <td style={{ padding: '3px 8px', border: '1px solid #ccc', textAlign: 'center' }}>
-                                        {editMode ? (
-                                            <select
-                                                value={fields.lampiran[item.key] ? 'Ada' : 'Tidak Ada'}
-                                                onChange={e => setField('lampiran', { ...fields.lampiran, [item.key]: e.target.value === 'Ada' })}
-                                                style={{ fontSize: '10pt', border: '1px solid #aaa', borderRadius: '4px', padding: '1px 4px' }}
-                                            >
-                                                <option>Ada</option>
-                                                <option>Tidak Ada</option>
-                                            </select>
-                                        ) : (
-                                            <span style={{ fontWeight: fields.lampiran[item.key] ? 'bold' : 'normal' }}>
-                                                {fields.lampiran[item.key] ? 'Ada' : 'Tidak Ada'}
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td style={{ padding: '3px 8px', border: '1px solid #ccc', textAlign: 'center' }}>{fields.lampiran[item.key] ? item.hal : '-'}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                <div style={{ marginTop: '5px', border: '1px solid #ddd', padding: '3px 6px', fontSize: '9pt' }}>
+                    <strong>j. Lampiran: </strong>
+                    rekap harian, rekap struk, laporan sistem AppKasir, buku besar PBJT.
                 </div>
 
-                {/* Catatan tambahan */}
-                {(editMode || fields.catatanTambahan) && isFirst && (
-                    <div style={{ marginTop: '6px', fontSize: '10pt' }}>
-                        <strong>Catatan Tambahan:</strong>
-                        {editMode ? (
-                            <textarea
-                                value={fields.catatanTambahan}
-                                onChange={e => setField('catatanTambahan', e.target.value)}
-                                rows={2}
-                                style={{ width: '100%', border: '1px solid #aaa', borderRadius: '4px', padding: '4px', fontFamily: 'inherit', fontSize: '10pt', marginTop: '4px', resize: 'vertical' }}
-                                placeholder="Catatan bebas untuk BPKPD..."
-                            />
-                        ) : (
-                            <p style={{ marginTop: '4px', padding: '4px 8px', background: '#fafafa', border: '1px solid #eee' }}>{fields.catatanTambahan}</p>
-                        )}
-                    </div>
-                )}
-
                 {/* Tanda tangan */}
-                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '16px', border: '1px solid #000' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px', border: '1.2px solid #000' }}>
                     <tbody>
                         <tr>
-                            <td style={{ width: '33%', border: '1px solid #000', padding: '8px', textAlign: 'center', verticalAlign: 'top' }}>
-                                <div>Diterima oleh Petugas,</div>
-                                <div>Tanggal ......./......./{data.year}</div>
-                                <div style={{ marginTop: '60px' }}>(.....................)</div>
+                            <td style={{ width: '33%', border: '1.2px solid #000', padding: '5px', textAlign: 'center', verticalAlign: 'top', fontSize: '9pt' }}>
+                                <div>Diterima Petugas,</div>
+                                <div>Tgl ...../...../2026</div>
+                                <div style={{ marginTop: '40px' }}>( ..................... )</div>
                                 <div>NIP:</div>
                             </td>
-                            <td style={{ width: '34%', border: '1px solid #000', padding: '8px', textAlign: 'center', verticalAlign: 'top' }}>
-                                <div style={{ fontWeight: 'bold', fontSize: '10pt' }}>Nomor Formulir</div>
-                                <div style={{ fontWeight: 'bold', fontSize: '11pt', marginTop: '4px' }}>SPTPD-REST</div>
-                                <div style={{ fontWeight: 'bold', fontSize: '10pt' }}>Kabupaten Mamberamo Raya</div>
-                                <div style={{ marginTop: '4px', fontSize: '10pt' }}>DPD - 11 (Rev. 2026)</div>
-                                <div style={{ marginTop: '8px', fontSize: '9pt', color: '#555' }}>{data.nomorSPTPD}</div>
+                            <td style={{ width: '34%', border: '1.2px solid #000', padding: '5px', textAlign: 'center', verticalAlign: 'top' }}>
+                                <div style={{ fontWeight: 'bold', fontSize: '8.5pt' }}>SPTPD-REST</div>
+                                <div style={{ fontSize: '7.5pt', color: '#555' }}>{data.nomorSPTPD}</div>
+                                <div style={{ marginTop: '40px', fontSize: '7.5pt' }}>Mamberamo Raya, {data.tanggalGenerate}</div>
                             </td>
-                            <td style={{ width: '33%', border: '1px solid #000', padding: '8px', textAlign: 'center', verticalAlign: 'top' }}>
-                                <div>WP / Penanggung Pajak / Kuasa,</div>
-                                <div>Mamberamo Raya, {data.tanggalGenerate}</div>
-                                <div style={{ marginTop: '60px' }}>(.....................)</div>
-                                <div>Nama Jelas / Cap / Stempel</div>
+                            <td style={{ width: '33%', border: '1.2px solid #000', padding: '5px', textAlign: 'center', verticalAlign: 'top', fontSize: '9pt' }}>
+                                <div>Penanggung Pajak,</div>
+                                <div style={{ marginTop: '40px' }}>( ..................... )</div>
+                                <div>Nama Jelas / Cap Stempel</div>
                             </td>
                         </tr>
                     </tbody>

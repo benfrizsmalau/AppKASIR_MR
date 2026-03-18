@@ -1,10 +1,8 @@
-// Layout khusus halaman SPTPD — tanpa POS sidebar agar bisa dicetak bersih
+// Layout khusus halaman SPTPD
 export default function SPTPDLayout({ children }) {
     return (
-        <html lang="id">
-            <body className="bg-gray-100">
-                {children}
-            </body>
-        </html>
+        <div className="min-h-screen bg-gray-100 relative">
+            {children}
+        </div>
     );
 }
