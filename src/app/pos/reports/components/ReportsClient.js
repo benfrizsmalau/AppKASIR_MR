@@ -176,24 +176,10 @@ export default function ReportsClient({ initialSalesData, initialCreditData, ini
         document.body.removeChild(link);
     };
 
-    const exportSPTPD = (mp) => {
-        const rows = [
-            ["FORMULIR SPTPD - PAJAK BAHAN BAKAR JENIS TERTENTU (PBJT)"],
-            [],
-            ["Masa Pajak", `${MONTH_NAMES[mp.month - 1]} ${mp.year}`],
-            ["Total Transaksi", mp.txCount],
-            ["Dasar Pengenaan Pajak (DPP)", mp.totalDPP.toLocaleString('id-ID')],
-            ["Pajak Terutang (PBJT 10%)", mp.totalPBJT.toLocaleString('id-ID')],
-            ["Status", mp.isLocked ? `Dikunci pada ${new Date(mp.lockedAt).toLocaleString('id-ID')}` : "Belum Dikunci"],
-        ];
-        let csvContent = "data:text/csv;charset=utf-8,";
-        rows.forEach(row => { csvContent += row.join(",") + "\r\n"; });
-        const link = document.createElement("a");
-        link.setAttribute("href", encodeURI(csvContent));
-        link.setAttribute("download", `SPTPD_${mp.year}_${String(mp.month).padStart(2, '0')}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    const openSPTPD = (mp) => {
+        // Buka halaman preview SPTPD PDF di tab baru
+        const url = `/pos/reports/sptpd?year=${mp.year}&month=${mp.month}`;
+        window.open(url, '_blank');
     };
 
     const handleLockMasaPajak = async (mp) => {
@@ -759,12 +745,12 @@ export default function ReportsClient({ initialSalesData, initialCreditData, ini
                                                     <td className="px-8 py-5 text-right">
                                                         <div className="flex items-center justify-end gap-2">
                                                             <button
-                                                                onClick={() => exportSPTPD(mp)}
+                                                                onClick={() => openSPTPD(mp)}
                                                                 className="p-2 bg-green-50 hover:bg-green-100 text-green-700 rounded-xl transition-colors text-xs font-bold flex items-center gap-1"
-                                                                title="Ekspor SPTPD"
+                                                                title="Buka Formulir SPTPD PDF"
                                                             >
                                                                 <Download className="w-3.5 h-3.5" />
-                                                                SPTPD
+                                                                SPTPD PDF
                                                             </button>
                                                             {!mp.isLocked && (
                                                                 <button
