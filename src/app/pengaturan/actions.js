@@ -39,6 +39,11 @@ export async function updateOutletSettings(formData) {
         const updateData = {
             name: formData.name,
             address: formData.address,
+            village: formData.village || null,
+            district: formData.district || null,
+            regency: formData.regency || null,
+            province: formData.province || null,
+            postal_code: formData.postal_code || null,
             phone: formData.phone,
             email: formData.email,
             npwpd: formData.npwpd,

@@ -7,6 +7,8 @@ import { updateOutletSettings } from "../actions";
 const PROFILE_CHECKS = [
     { key: 'name', label: 'Nama Outlet' },
     { key: 'address', label: 'Alamat' },
+    { key: 'regency', label: 'Kabupaten/Kota' },
+    { key: 'province', label: 'Provinsi' },
     { key: 'phone', label: 'No. Telepon' },
     { key: 'email', label: 'Email' },
     { key: 'npwpd', label: 'NPWPD (jika wajib pajak)' },
@@ -116,17 +118,41 @@ export default function SettingsClient({ initialSettings }) {
                                 </div>
                                 <div>
                                     <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Alamat Lengkap</label>
-                                    <textarea rows={3} value={settings.address || ''} onChange={e => setSettings({ ...settings, address: e.target.value })} className="w-full bg-gray-50 rounded-xl p-3.5 border border-gray-200 focus:bg-white text-primary-950 outline-none font-bold transition-all" />
+                                    <textarea rows={2} value={settings.address || ''} onChange={e => setSettings({ ...settings, address: e.target.value })} className="w-full bg-gray-50 rounded-xl p-3.5 border border-gray-200 focus:bg-white text-primary-950 outline-none font-bold transition-all" />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Kelurahan/Desa</label>
+                                        <input type="text" value={settings.village || ''} onChange={e => setSettings({ ...settings, village: e.target.value })} className="w-full bg-gray-50 rounded-xl p-3.5 border border-gray-200 focus:bg-white text-primary-950 outline-none font-bold transition-all" placeholder="Kelurahan..." />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Kecamatan</label>
+                                        <input type="text" value={settings.district || ''} onChange={e => setSettings({ ...settings, district: e.target.value })} className="w-full bg-gray-50 rounded-xl p-3.5 border border-gray-200 focus:bg-white text-primary-950 outline-none font-bold transition-all" placeholder="Kecamatan..." />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Kabupaten/Kota <span className="text-red-400">*</span></label>
+                                        <input type="text" value={settings.regency || ''} onChange={e => setSettings({ ...settings, regency: e.target.value })} className="w-full bg-gray-50 rounded-xl p-3.5 border border-gray-200 focus:bg-white text-primary-950 outline-none font-bold transition-all" placeholder="Mamberamo Raya..." />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Provinsi <span className="text-red-400">*</span></label>
+                                        <input type="text" value={settings.province || ''} onChange={e => setSettings({ ...settings, province: e.target.value })} className="w-full bg-gray-50 rounded-xl p-3.5 border border-gray-200 focus:bg-white text-primary-950 outline-none font-bold transition-all" placeholder="Papua..." />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Kode Pos</label>
+                                        <input type="text" value={settings.postal_code || ''} onChange={e => setSettings({ ...settings, postal_code: e.target.value })} className="w-full bg-gray-50 rounded-xl p-3.5 border border-gray-200 focus:bg-white text-primary-950 outline-none font-bold transition-all" placeholder="12345" />
+                                    </div>
                                     <div>
                                         <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Telepon</label>
                                         <input type="text" value={settings.phone || ''} onChange={e => setSettings({ ...settings, phone: e.target.value })} className="w-full bg-gray-50 rounded-xl p-3.5 border border-gray-200 focus:bg-white text-primary-950 outline-none font-bold transition-all" />
                                     </div>
-                                    <div>
-                                        <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Email</label>
-                                        <input type="email" value={settings.email || ''} onChange={e => setSettings({ ...settings, email: e.target.value })} className="w-full bg-gray-50 rounded-xl p-3.5 border border-gray-200 focus:bg-white text-primary-950 outline-none font-bold transition-all" />
-                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">Email</label>
+                                    <input type="email" value={settings.email || ''} onChange={e => setSettings({ ...settings, email: e.target.value })} className="w-full bg-gray-50 rounded-xl p-3.5 border border-gray-200 focus:bg-white text-primary-950 outline-none font-bold transition-all" />
                                 </div>
                             </div>
                         </div>
