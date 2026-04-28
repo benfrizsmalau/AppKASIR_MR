@@ -107,6 +107,7 @@ export async function getPOSData() {
             categories: categoryNames,
             menuItems: formattedMenu,
             customers: customers || [],
+            session: { tenant_id, outlet_id, user_id, cashier_name: userName },
             outletData: {
                 name: outlet.name,
                 address: outlet.address,

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { X, Wallet, QrCode, CreditCard, CheckCircle, Plus, Trash2 } from "lucide-react";
+import { X, Wallet, QrCode, CreditCard, CheckCircle, Plus, Trash2, WifiOff } from "lucide-react";
 import { processPayment } from "../../actions/payment";
+import { offlineProcessPayment } from "@/lib/offlineOps";
 
 const PAYMENT_METHODS = ['Tunai', 'QRIS', 'Debit', 'Kredit', 'Transfer Bank'];
 
-export default function PaymentModal({ isOpen, onClose, cart, outletData, onPaySuccess, selectedCustomer, billing, orderId = null }) {
+export default function PaymentModal({ isOpen, onClose, cart, outletData, onPaySuccess, selectedCustomer, billing, orderId = null, isOnline = true }) {
     const { itemsSubtotal = 0, totalDiscountAmount = 0, serviceChargeAmount = 0, dpp = 0, pbjtAmount = 0, grandTotal = 0 } = billing || {};
 
     const finalTotal = Math.round(grandTotal);
@@ -105,7 +106,9 @@ export default function PaymentModal({ isOpen, onClose, cart, outletData, onPayS
             customerName: selectedCustomer?.name || null
         };
 
-        const result = await processPayment(payload);
+        const result = isOnline
+            ? await processPayment(payload)
+            : await offlineProcessPayment(payload);
 
         if (result.success) {
             setIsSubmitting(false);
@@ -126,7 +129,14 @@ export default function PaymentModal({ isOpen, onClose, cart, outletData, onPayS
                 {/* ── Kiri: Metode & Input ── */}
                 <div className="w-[55%] flex flex-col border-r border-gray-100">
                     <div className="px-6 py-4 border-b flex items-center justify-between bg-gray-50 shrink-0">
-                        <h2 className="text-xl font-bold text-primary-900">Pembayaran</h2>
+                        <div>
+                            <h2 className="text-xl font-bold text-primary-900">Pembayaran</h2>
+                            {!isOnline && (
+                                <span className="flex items-center gap-1 text-xs text-orange-600 font-semibold mt-0.5">
+                                    <WifiOff className="w-3 h-3" /> Offline — disimpan lokal, sinkron saat online
+                                </span>
+                            )}
+                        </div>
                         <button onClick={onClose} className="p-2 bg-gray-200 hover:bg-red-100 hover:text-red-600 rounded-full transition-colors">
                             <X className="w-5 h-5" />
                         </button>

@@ -12,6 +12,9 @@ import PaymentModal from "./modals/PaymentModal";
 import VariationModal from "./modals/VariationModal";
 import SplitBillModal from "./modals/SplitBillModal";
 import ReceiptPrintout from "./ReceiptPrintout";
+import OfflineBanner from "./OfflineBanner";
+import useOnlineStatus from "@/hooks/useOnlineStatus";
+import { cachePOSData } from "@/lib/offlineOps";
 
 // ─── Kalkulasi harga item setelah diskon ─────────────────────────────────────
 function getItemNet(item, itemDiscounts) {
@@ -23,11 +26,25 @@ function getItemNet(item, itemDiscounts) {
 }
 
 export default function POSClient({ initialData }) {
-    const { categories, menuItems, outletData, userName, profileComplete, missingFields } = initialData;
+    const { categories, menuItems, outletData, userName, profileComplete, missingFields, customers, session } = initialData;
     const searchParams = useSearchParams();
     const router = useRouter();
     const orderIdCtx = searchParams.get('orderId');
     const tableCtx = searchParams.get('table');
+    const isOnline = useOnlineStatus();
+
+    // Cache semua data POS ke IndexedDB saat pertama kali load (dan online)
+    useEffect(() => {
+        if (!isOnline) return;
+        cachePOSData({
+            session: session || {},
+            outletData,
+            menuItems,
+            categories: categories.filter(c => c !== 'Semua').map((name, i) => ({ id: `cat-${i}`, name, tenant_id: session?.tenant_id })),
+            customers: customers || [],
+            tables: [],
+        }).catch(() => {}); // Gagal cache tidak mengganggu operasi
+    }, [isOnline]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Cart & Search ──────────────────────────────────────────────────────────
     const [activeCategory, setActiveCategory] = useState("Semua");
@@ -182,6 +199,9 @@ export default function POSClient({ initialData }) {
 
     return (
         <div className="flex flex-col w-full h-full bg-gray-50 overflow-hidden font-sans text-gray-900">
+
+            {/* ════ BANNER OFFLINE ════ */}
+            <OfflineBanner isOnline={isOnline} />
 
             {/* ════ BANNER PROFIL TIDAK LENGKAP ════ */}
             {!profileComplete && (
@@ -476,10 +496,11 @@ export default function POSClient({ initialData }) {
                 billing={{ itemsSubtotal, totalDiscountAmount, serviceChargeAmount, dpp, pbjtAmount, grandTotal }}
                 editOrderId={orderIdCtx}
                 editTableNumber={tableCtx}
+                isOnline={isOnline}
                 onHoldSuccess={(orderNum, extra) => {
                     setPrintData({ type: 'KOT', outlet: outletData, orderNumber: orderNum, items: cart, notes: extra.notes, tableNumber: extra.tableNumber || tableCtx, cashier: userName });
                     setIsCheckoutOpen(false); clearCart();
-                    if (orderIdCtx) router.push('/pos/orders'); // Back to active orders if editing
+                    if (orderIdCtx) router.push('/pos/orders');
                 }}
             />
             <PaymentModal
@@ -487,6 +508,7 @@ export default function POSClient({ initialData }) {
                 onClose={() => setIsPaymentOpen(false)}
                 cart={cart} outletData={outletData} selectedCustomer={selectedCustomer}
                 billing={{ itemsSubtotal, totalDiscountAmount, serviceChargeAmount, dpp, pbjtAmount, grandTotal }}
+                isOnline={isOnline}
                 onPaySuccess={(receiptNum, changeAmt, method, cash) => {
                     setPrintData({ type: 'Receipt', outlet: outletData, receiptNumber: receiptNum, items: [...cart], itemsSubtotal, totalDiscount: totalDiscountAmount, serviceCharge: serviceChargeAmount, dpp, taxAmount: pbjtAmount, grandTotal: Math.round(grandTotal), paymentMethod: method, cashTendered: cash, changeAmount: changeAmt, customer: selectedCustomer?.name, cashier: userName });
                     setIsPaymentOpen(false); clearCart();

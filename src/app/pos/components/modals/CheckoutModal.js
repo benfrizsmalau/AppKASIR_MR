@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Utensils, TakeoutDining, MapPin, PlusCircle } from "lucide-react";
+import { X, Utensils, TakeoutDining, MapPin, PlusCircle, WifiOff } from "lucide-react";
 import { getTablesData, holdOrderSubmit, addItemsToOrder } from "../../actions/orders";
+import { offlineHoldOrder, getOfflineTables, cacheTables } from "@/lib/offlineOps";
 
-export default function CheckoutModal({ isOpen, onClose, cart, outletData, onHoldSuccess, selectedCustomer, billing, editOrderId, editTableNumber }) {
+export default function CheckoutModal({ isOpen, onClose, cart, outletData, onHoldSuccess, selectedCustomer, billing, editOrderId, editTableNumber, isOnline = true }) {
     const { itemsSubtotal = 0, totalDiscountAmount = 0, serviceChargeAmount = 0, dpp = 0, pbjtAmount = 0, grandTotal = 0 } = billing || {};
     const [tables, setTables] = useState([]);
     const [loadingTables, setLoadingTables] = useState(false);
@@ -15,18 +16,26 @@ export default function CheckoutModal({ isOpen, onClose, cart, outletData, onHol
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
 
-    // Fetch Tables
+    // Fetch Tables — online dari server, offline dari IndexedDB
     useEffect(() => {
         if (isOpen && orderType === 'Dine-In') {
             const fetchTbl = async () => {
                 setLoadingTables(true);
-                const res = await getTablesData();
-                if (res.success) setTables(res.tables);
+                if (isOnline) {
+                    const res = await getTablesData();
+                    if (res.success) {
+                        setTables(res.tables);
+                        cacheTables(res.tables); // simpan ke cache offline
+                    }
+                } else {
+                    const localTables = await getOfflineTables();
+                    setTables(localTables);
+                }
                 setLoadingTables(false);
             };
             fetchTbl();
         }
-    }, [isOpen, orderType]);
+    }, [isOpen, orderType, isOnline]);
 
     const finalTotal = Math.round(grandTotal);
 
@@ -56,9 +65,9 @@ export default function CheckoutModal({ isOpen, onClose, cart, outletData, onHol
             customerName: selectedCustomer ? selectedCustomer.name : null
         };
 
-        const result = editOrderId 
-            ? await addItemsToOrder(payload)
-            : await holdOrderSubmit(payload);
+        const result = editOrderId
+            ? (isOnline ? await addItemsToOrder(payload) : { success: false, message: 'Tambah item ke pesanan aktif membutuhkan koneksi.' })
+            : (isOnline ? await holdOrderSubmit(payload) : await offlineHoldOrder(payload));
 
         if (result.success) {
             setIsSubmitting(false);
@@ -82,7 +91,14 @@ export default function CheckoutModal({ isOpen, onClose, cart, outletData, onHol
 
                 {/* Header Modal */}
                 <div className="px-6 py-4 border-b flex items-center justify-between bg-gray-50 shrink-0">
-                    <h2 className="text-xl font-bold text-primary-900">Simpan Pesanan (Hold)</h2>
+                    <div>
+                        <h2 className="text-xl font-bold text-primary-900">Simpan Pesanan (Hold)</h2>
+                        {!isOnline && (
+                            <span className="flex items-center gap-1 text-xs text-orange-600 font-semibold mt-0.5">
+                                <WifiOff className="w-3 h-3" /> Offline — pesanan disimpan lokal
+                            </span>
+                        )}
+                    </div>
                     <button
                         onClick={onClose}
                         className="p-2 bg-gray-200 hover:bg-red-100 hover:text-red-600 rounded-full transition-colors"
