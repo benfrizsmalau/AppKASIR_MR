@@ -21,6 +21,12 @@ export async function processOwnerSignIn(email, password) {
             .in('role', OWNER_ROLES)
             .maybeSingle();
 
+        // Jika ada error koneksi Supabase (env var salah, RLS, dsb)
+        if (error) {
+            console.error('SignIn DB Error:', error.message, error.code);
+            return { success: false, message: 'Gagal terhubung ke database. Cek konfigurasi server.' };
+        }
+
         // Gunakan pesan generik agar tidak membocorkan info (cegah user enumeration)
         if (!user) {
             return { success: false, message: 'Email atau kata sandi salah.' };
@@ -52,26 +58,20 @@ export async function processOwnerSignIn(email, password) {
         }
 
         // Login berhasil — set session cookies
-        const cookieStore = await cookies();
-        cookieStore.set('session_user_id', user.id, {
+        const isProduction = process.env.NODE_ENV === 'production';
+        const cookieOptions = {
             path: '/',
             httpOnly: true,
             sameSite: 'lax',
+            secure: isProduction, // HTTPS wajib di production (Netlify)
             maxAge: 60 * 60 * 24 * 7, // 7 hari
-        });
-        cookieStore.set('active_tenant_id', user.tenant_id, {
-            path: '/',
-            httpOnly: true,
-            sameSite: 'lax',
-            maxAge: 60 * 60 * 24 * 7,
-        });
+        };
+
+        const cookieStore = await cookies();
+        cookieStore.set('session_user_id', user.id, cookieOptions);
+        cookieStore.set('active_tenant_id', user.tenant_id, cookieOptions);
         if (user.outlet_id) {
-            cookieStore.set('active_outlet_id', user.outlet_id, {
-                path: '/',
-                httpOnly: true,
-                sameSite: 'lax',
-                maxAge: 60 * 60 * 24 * 7,
-            });
+            cookieStore.set('active_outlet_id', user.outlet_id, cookieOptions);
         }
 
         return {
