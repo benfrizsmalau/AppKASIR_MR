@@ -6,7 +6,7 @@ import { processPayment } from "../../actions/payment";
 
 const PAYMENT_METHODS = ['Tunai', 'QRIS', 'Debit', 'Kredit', 'Transfer Bank'];
 
-export default function PaymentModal({ isOpen, onClose, cart, outletData, onPaySuccess, selectedCustomer, billing }) {
+export default function PaymentModal({ isOpen, onClose, cart, outletData, onPaySuccess, selectedCustomer, billing, orderId = null }) {
     const { itemsSubtotal = 0, totalDiscountAmount = 0, serviceChargeAmount = 0, dpp = 0, pbjtAmount = 0, grandTotal = 0 } = billing || {};
 
     const finalTotal = Math.round(grandTotal);
@@ -89,7 +89,7 @@ export default function PaymentModal({ isOpen, onClose, cart, outletData, onPayS
         const finalChange = isMixedPayment ? mixedChange : changeAmount;
 
         const payload = {
-            orderId: null,
+            orderId,
             cartData: cart,
             paymentMethod: finalMethod,
             mixedPayments: isMixedPayment ? mixedPayments : null,

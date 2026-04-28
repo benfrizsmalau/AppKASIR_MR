@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
     Search, ShoppingBag, Plus, Minus, Trash2, CreditCard,
-    User, X, Tag, MessageSquare, ChevronDown, ChevronUp, Percent, DivideSquare
+    User, X, Tag, MessageSquare, ChevronDown, ChevronUp, Percent, DivideSquare,
+    Coffee, Utensils, Pizza, IceCream, Package, LayoutGrid
 } from "lucide-react";
 import CheckoutModal from "./modals/CheckoutModal";
 import PaymentModal from "./modals/PaymentModal";
@@ -22,6 +24,10 @@ function getItemNet(item, itemDiscounts) {
 
 export default function POSClient({ initialData }) {
     const { categories, menuItems, outletData, userName, profileComplete, missingFields } = initialData;
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const orderIdCtx = searchParams.get('orderId');
+    const tableCtx = searchParams.get('table');
 
     // ── Cart & Search ──────────────────────────────────────────────────────────
     const [activeCategory, setActiveCategory] = useState("Semua");
@@ -190,398 +196,272 @@ export default function POSClient({ initialData }) {
                 </div>
             )}
 
-        <div className="flex flex-1 overflow-hidden">
-            {/* ════ PANEL KIRI — MENU GRID ════ */}
-            <div className="flex-1 flex flex-col h-full overscroll-contain">
-
-                {/* Header */}
-                <header className="bg-white px-6 py-4 flex items-center justify-between border-b shadow-xs z-10 shrink-0">
-                    <div className="flex items-center gap-4 flex-1 max-w-xl">
-                        <h1 className="text-2xl font-bold tracking-tight text-primary-900 mr-4">AppKasir POS</h1>
-                        <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
-                                placeholder="Cari menu... (min. 2 karakter)"
-                                className="w-full bg-gray-100 rounded-full py-2.5 pl-10 pr-4 focus:bg-white focus:ring-2 focus:ring-primary-500 transition-all border-transparent focus:border-primary-500"
-                            />
-                        </div>
+            {/* Header POS */}
+            <header className="bg-white px-6 py-4 flex items-center justify-between border-b shadow-xs z-10 shrink-0">
+                <div className="flex items-center gap-4 flex-1 max-w-xl">
+                    <h1 className="text-2xl font-bold tracking-tight text-primary-900 mr-4">AppKasir POS</h1>
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            placeholder="Cari menu..."
+                            className="w-full bg-gray-100 rounded-full py-2.5 pl-10 pr-4 focus:bg-white focus:ring-2 focus:ring-primary-500 transition-all border-transparent focus:border-primary-500"
+                        />
                     </div>
-                    <div className="flex items-center gap-4">
-                        <div className="text-right">
-                            <p className="text-sm font-semibold">{outletData.name}</p>
-                            <p className="text-xs text-gray-500">{userName}</p>
-                        </div>
-                        <div className="w-10 h-10 bg-primary-100 text-primary-800 rounded-full flex items-center justify-center font-bold">
-                            {userName.charAt(0).toUpperCase()}
-                        </div>
+                </div>
+                <div className="flex items-center gap-4">
+                    <div className="text-right">
+                        <p className="text-sm font-semibold">{outletData.name}</p>
+                        <p className="text-xs text-gray-500">{userName}</p>
                     </div>
-                </header>
-
-                {/* Tab Kategori */}
-                <div className="bg-white px-6 py-3 border-b flex gap-2 overflow-x-auto no-scrollbar shrink-0">
-                    {categories.map(cat => (
-                        <button
-                            key={cat}
-                            onClick={() => setActiveCategory(cat)}
-                            className={`px-5 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all active:scale-95 ${activeCategory === cat ? 'bg-primary-900 text-accent-400 shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                        >
-                            {cat}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Menu Grid */}
-                <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-                    {filteredMenu.length === 0 ? (
-                        <div className="flex items-center justify-center p-12 text-gray-400">Menu tidak ditemukan.</div>
-                    ) : (
-                        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 pb-20">
-                            {filteredMenu.map(item => (
-                                <div
-                                    key={item.id}
-                                    onClick={() => addToCart(item)}
-                                    className={`bg-white rounded-xl overflow-hidden border transition-all duration-200 ${item.status === 'Habis'
-                                        ? 'opacity-50 grayscale cursor-not-allowed border-gray-200'
-                                        : 'cursor-pointer hover:border-primary-400 hover:shadow-lg hover:-translate-y-1 active:scale-95 border-gray-100 shadow-sm'
-                                        }`}
-                                >
-                                    <div className="aspect-square bg-gray-100 flex items-center justify-center relative">
-                                        {item.image_url
-                                            ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                                            : <span className="text-gray-300 text-[10px] font-medium p-1 text-center">Tanpa Foto</span>
-                                        }
-                                        {item.status === 'Habis' && (
-                                            <div className="absolute inset-0 bg-white/60 flex items-center justify-center backdrop-blur-[1px]">
-                                                <span className="bg-red-500 text-white px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider">Habis</span>
-                                            </div>
-                                        )}
-                                        {item.variations?.length > 0 && (
-                                            <div className="absolute top-1 right-1 bg-accent-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full leading-none">VAR</div>
-                                        )}
-                                    </div>
-                                    <div className="p-2">
-                                        <p className="text-[10px] font-bold text-gray-900 line-clamp-2 leading-none mb-1 h-5">{item.name}</p>
-                                        <p className="text-primary-700 font-black text-[10px]">Rp {item.price.toLocaleString('id-ID')}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* ════ PANEL KANAN — KERANJANG ════ */}
-            <div className="w-[400px] xl:w-[440px] bg-white border-l shadow-2xl flex flex-col h-full relative z-20 shrink-0">
-
-                {/* Cart Header */}
-                <div className="p-5 border-b flex justify-between items-center bg-gray-50/50 shrink-0">
-                    <div className="flex items-center gap-3">
-                        <div className="bg-accent-100 p-2 rounded-lg text-accent-700">
-                            <ShoppingBag className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <h2 className="font-bold text-lg leading-tight">Pesanan Aktif</h2>
-                            <p className="text-xs font-medium text-gray-500">{cart.length} item</p>
-                        </div>
+                    <div className="w-10 h-10 bg-primary-100 text-primary-800 rounded-full flex items-center justify-center font-bold">
+                        {userName.charAt(0).toUpperCase()}
                     </div>
-                    <button
-                        className="text-sm font-semibold text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
-                        onClick={clearCart}
-                    >
-                        Batal
-                    </button>
                 </div>
+            </header>
 
-                {/* Pilih Pelanggan */}
-                <div className="px-5 py-3 border-b bg-white shrink-0">
-                    {selectedCustomer ? (
-                        <div className="flex items-center justify-between bg-primary-50 p-3 rounded-2xl border border-primary-100">
-                            <div className="flex items-center gap-3">
-                                <div className="bg-primary-900 text-accent-400 p-2 rounded-xl">
-                                    <User className="w-4 h-4" />
-                                </div>
-                                <div>
-                                    <p className="text-xs font-bold text-primary-900 leading-none mb-1">{selectedCustomer.name}</p>
-                                    <p className="text-[10px] text-primary-600 font-medium">
-                                        Limit: Rp {Number(selectedCustomer.credit_limit).toLocaleString('id-ID')} •
-                                        Hutang: Rp {Number(selectedCustomer.current_debt).toLocaleString('id-ID')}
-                                    </p>
-                                </div>
+            {/* Main Area */}
+            <div className="flex flex-1 overflow-hidden">
+                
+                {/* ──── PANEL TENGAH — MENU GRID ──── */}
+                <div className="flex-1 flex flex-col h-full bg-gray-50/50">
+                    <div className="px-6 py-4 bg-white/50 backdrop-blur-md border-b flex items-center justify-between shrink-0">
+                        <h2 className="font-black text-lg text-primary-900 flex items-center gap-2">
+                            <span className="w-2 h-7 bg-accent-500 rounded-full"></span>
+                            Daftar Menu
+                        </h2>
+                        {searchQuery && (
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest text-primary-500">
+                                Hasil Pencarian: "{searchQuery}"
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-6 scroll-smooth">
+                        {filteredMenu.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-full text-gray-300 gap-4">
+                                <Search className="w-16 h-16 opacity-10" />
+                                <p className="font-bold">Menu tidak ditemukan.</p>
                             </div>
-                            <button onClick={() => setSelectedCustomer(null)} className="text-primary-400 hover:text-red-500 p-1">
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="relative">
-                            <button
-                                onClick={() => setIsCustomerSearchOpen(!isCustomerSearchOpen)}
-                                className="w-full flex items-center gap-2 px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm text-gray-500 hover:bg-gray-100 transition-all font-medium"
-                            >
-                                <Plus className="w-4 h-4" />
-                                Pilih Pelanggan (Opsional)
-                            </button>
-                            {isCustomerSearchOpen && (
-                                <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-gray-100 shadow-2xl rounded-2xl z-50 max-h-64 overflow-hidden flex flex-col">
-                                    <div className="p-3 border-b">
-                                        <input
-                                            autoFocus
-                                            type="text"
-                                            placeholder="Cari pelanggan..."
-                                            value={customerSearchQuery}
-                                            onChange={e => setCustomerSearchQuery(e.target.value)}
-                                            className="w-full bg-gray-50 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500"
-                                        />
-                                    </div>
-                                    <div className="overflow-y-auto">
-                                        {initialData.customers
-                                            ?.filter(c => c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()))
-                                            ?.map(c => (
-                                                <button
-                                                    key={c.id}
-                                                    onClick={() => { setSelectedCustomer(c); setIsCustomerSearchOpen(false); setCustomerSearchQuery(''); }}
-                                                    className="w-full text-left px-4 py-3 text-sm hover:bg-primary-50 border-b border-gray-50 last:border-0 transition-colors"
-                                                >
-                                                    <p className="font-bold text-gray-900">{c.name}</p>
-                                                    <p className="text-[10px] text-gray-500">{c.type} • Limit: Rp {Number(c.credit_limit).toLocaleString('id-ID')}</p>
-                                                </button>
-                                            ))
-                                        }
-                                        {(!initialData.customers || initialData.customers.length === 0) && (
-                                            <p className="p-4 text-xs text-center text-gray-400">Belum ada data pelanggan.</p>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                        ) : (
+                            <div className="space-y-8 pb-32">
+                                {categories.map(catName => {
+                                    const itemsInCat = filteredMenu.filter(m => m.category === catName);
+                                    if (itemsInCat.length === 0) return null;
+
+                                    return (
+                                        <div key={catName} className="space-y-4">
+                                            <div className="flex items-center gap-4">
+                                                <h3 className="text-xs font-black text-primary-900 bg-accent-400 px-3 py-1 rounded-full">{catName.toUpperCase()}</h3>
+                                                <div className="flex-1 h-px bg-gray-200"></div>
+                                            </div>
+                                            
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+                                                {itemsInCat.map(item => (
+                                                    <div
+                                                        key={item.id}
+                                                        onClick={() => addToCart(item)}
+                                                        className={`group relative bg-white rounded-3xl overflow-hidden border-2 transition-all duration-300 ${item.status === 'Habis'
+                                                            ? 'opacity-50 grayscale cursor-not-allowed border-gray-100'
+                                                            : 'cursor-pointer hover:border-accent-500 hover:shadow-2xl hover:-translate-y-1 active:scale-95 border-white shadow-sm'
+                                                            }`}
+                                                    >
+                                                        <div className="aspect-[4/3] bg-gray-100 flex items-center justify-center relative overflow-hidden">
+                                                            {item.image_url
+                                                                ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                                : <div className="flex flex-col items-center gap-1 text-gray-300">
+                                                                    <Package className="w-8 h-8 opacity-20" />
+                                                                    <span className="text-[8px] font-bold uppercase tracking-widest p-1 text-center">No Image</span>
+                                                                  </div>
+                                                            }
+                                                            <div className="absolute top-2 left-2">
+                                                                <div className="bg-primary-900/90 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg border border-white/20">
+                                                                    Rp {item.price.toLocaleString('id-ID')}
+                                                                </div>
+                                                            </div>
+                                                            {item.track_stock && (
+                                                                <div className={`absolute bottom-2 right-2 px-2 py-0.5 rounded-full text-[9px] font-black border backdrop-blur-md ${Number(item.current_stock) <= Number(item.min_stock) ? 'bg-red-500/90 text-white border-white' : 'bg-white/90 text-primary-900 border-gray-200'}`}>
+                                                                    {item.current_stock > 0 ? `Sisa: ${item.current_stock}` : 'Habis'}
+                                                                </div>
+                                                            )}
+                                                            {item.variations?.length > 0 && (
+                                                                <div className="absolute top-2 right-2 bg-accent-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full border border-white shadow-lg">VAR</div>
+                                                            )}
+                                                        </div>
+                                                        <div className="p-4">
+                                                            <p className="text-[11px] font-black text-primary-900 line-clamp-2 leading-tight h-8 uppercase tracking-tight">{item.name}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                {/* Cart Items */}
-                <div className="flex-1 overflow-y-auto p-4">
-                    {cart.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-4">
-                            <ShoppingBag className="w-16 h-16 opacity-30" />
-                            <p className="font-medium text-center">Keranjang masih kosong.<br />Pilih menu di sebelah kiri.</p>
+                {/* ──── PANEL KANAN — KERANJANG ──── */}
+                <div className="w-[400px] xl:w-[440px] bg-white border-l shadow-2xl flex flex-col h-full relative z-20 shrink-0">
+                    {/* Cart Header */}
+                    <div className="p-5 border-b flex justify-between items-center bg-gray-50/50 shrink-0">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-accent-100 p-2 rounded-lg text-accent-700">
+                                <ShoppingBag className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h2 className="font-bold text-lg leading-tight">Pesanan Aktif</h2>
+                                <p className="text-xs font-medium text-gray-500">{cart.length} item</p>
+                            </div>
                         </div>
-                    ) : (
-                        <div className="flex flex-col gap-2">
-                            {cart.map(item => {
-                                const isExpanded = activeCartId === item.cartId;
-                                const itemNet = getItemNet(item, itemDiscounts);
-                                const itemDisc = itemDiscounts[item.cartId];
-                                const hasDiscount = itemDisc && itemDisc.value > 0;
+                        <button onClick={clearCart} className="text-sm font-semibold text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors">
+                            Batal
+                        </button>
+                    </div>
 
-                                return (
-                                    <div key={item.cartId} className={`bg-white rounded-2xl border transition-all ${isExpanded ? 'border-primary-200 shadow-md' : 'border-gray-100 shadow-sm'}`}>
-                                        {/* Item Row */}
-                                        <div className="flex gap-3 p-3">
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-semibold text-gray-900 text-sm leading-tight truncate">{item.name}</p>
-                                                {item.variationLabels?.length > 0 && (
-                                                    <p className="text-[10px] text-primary-600 font-medium mt-0.5">{item.variationLabels.join(' • ')}</p>
-                                                )}
-                                                {item.itemNotes && (
-                                                    <p className="text-[10px] text-amber-600 italic mt-0.5">"{item.itemNotes}"</p>
-                                                )}
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <p className="text-xs text-gray-400">Rp {item.price.toLocaleString('id-ID')}/pcs</p>
-                                                    {hasDiscount && (
-                                                        <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">
-                                                            -{itemDisc.type === 'persen' ? `${itemDisc.value}%` : `Rp ${itemDisc.value.toLocaleString('id-ID')}`}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="flex flex-col items-end justify-between shrink-0">
-                                                <p className="font-bold text-primary-900 text-sm whitespace-nowrap">
-                                                    Rp {itemNet.toLocaleString('id-ID')}
-                                                </p>
-                                                <div className="flex items-center gap-1 mt-2">
+                    {/* Customer Info Selection */}
+                    <div className="px-5 py-3 border-b bg-white shrink-0">
+                        {selectedCustomer ? (
+                            <div className="flex items-center justify-between bg-primary-50 p-3 rounded-2xl border border-primary-100">
+                                <div className="flex items-center gap-3">
+                                    <div className="bg-primary-900 text-accent-400 p-2 rounded-xl">
+                                        <User className="w-4 h-4" />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-bold text-primary-900 leading-none mb-1">{selectedCustomer.name}</p>
+                                        <p className="text-[10px] text-primary-600 font-medium tracking-tight">
+                                            Limit: Rp {Number(selectedCustomer.credit_limit).toLocaleString('id-ID')} •
+                                            Hut: Rp {Number(selectedCustomer.current_debt).toLocaleString('id-ID')}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setSelectedCustomer(null)} className="text-primary-400 hover:text-red-500 p-1">
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="relative">
+                                <button
+                                    onClick={() => setIsCustomerSearchOpen(!isCustomerSearchOpen)}
+                                    className="w-full flex items-center gap-2 px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm text-gray-500 hover:bg-gray-100 transition-all font-medium"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    Pilih Pelanggan (Opsional)
+                                </button>
+                                {isCustomerSearchOpen && (
+                                    <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-gray-100 shadow-2xl rounded-2xl z-50 max-h-64 overflow-hidden flex flex-col">
+                                        <div className="p-3 border-b">
+                                            <input
+                                                autoFocus
+                                                type="text"
+                                                placeholder="Cari pelanggan..."
+                                                value={customerSearchQuery}
+                                                onChange={e => setCustomerSearchQuery(e.target.value)}
+                                                className="w-full bg-gray-50 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                                            />
+                                        </div>
+                                        <div className="overflow-y-auto">
+                                            {initialData.customers
+                                                ?.filter(c => c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()))
+                                                ?.map(c => (
                                                     <button
-                                                        onClick={() => setActiveCartId(isExpanded ? null : item.cartId)}
-                                                        className="w-7 h-7 rounded-full flex items-center justify-center bg-gray-100 text-gray-500 hover:bg-primary-50 hover:text-primary-600 transition-colors"
-                                                        title="Catatan & Diskon"
+                                                        key={c.id}
+                                                        onClick={() => { setSelectedCustomer(c); setIsCustomerSearchOpen(false); setCustomerSearchQuery(''); }}
+                                                        className="w-full text-left px-4 py-3 text-sm hover:bg-primary-50 border-b border-gray-50 last:border-0 transition-colors"
                                                     >
-                                                        <Tag className="w-3.5 h-3.5" />
+                                                        <p className="font-bold text-gray-900">{c.name}</p>
+                                                        <p className="text-[10px] text-gray-500">{c.type} • Limit: Rp {Number(c.credit_limit).toLocaleString('id-ID')}</p>
                                                     </button>
-                                                    <div className="flex items-center bg-gray-100 rounded-full p-0.5 ml-1">
-                                                        <button onClick={() => updateQty(item.cartId, -1)} className="w-7 h-7 rounded-full flex items-center justify-center bg-white shadow-sm text-gray-600 hover:text-red-500 hover:bg-red-50 transition-colors active:scale-90">
-                                                            {item.qty === 1 ? <Trash2 className="w-3.5 h-3.5" /> : <Minus className="w-3.5 h-3.5" />}
-                                                        </button>
-                                                        <span className="w-7 text-center font-bold text-sm select-none">{item.qty}</span>
-                                                        <button onClick={() => updateQty(item.cartId, 1)} className="w-7 h-7 rounded-full flex items-center justify-center bg-white shadow-sm text-gray-600 hover:text-primary-600 hover:bg-primary-50 transition-colors active:scale-90">
-                                                            <Plus className="w-3.5 h-3.5" />
-                                                        </button>
+                                                ))
+                                            }
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Cart Items List */}
+                    <div className="flex-1 overflow-y-auto p-4">
+                        {cart.length === 0 ? (
+                            <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-4 opacity-30">
+                                <ShoppingBag className="w-16 h-16" />
+                                <p className="font-bold text-center">Keranjang Kosong</p>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-2">
+                                {cart.map(item => {
+                                    const isExpanded = activeCartId === item.cartId;
+                                    const itemNet = getItemNet(item, itemDiscounts);
+                                    const itemDisc = itemDiscounts[item.cartId];
+                                    return (
+                                        <div key={item.cartId} className={`bg-white rounded-2xl border transition-all ${isExpanded ? 'border-primary-200 shadow-md' : 'border-gray-50'}`}>
+                                            <div className="flex gap-3 p-3">
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-bold text-gray-900 text-xs leading-tight truncate uppercase">{item.name}</p>
+                                                    <p className="text-[10px] text-gray-400 mt-1">Rp {item.price.toLocaleString('id-ID')}</p>
+                                                </div>
+                                                <div className="flex flex-col items-end gap-2">
+                                                    <p className="font-black text-primary-900 text-sm">Rp {itemNet.toLocaleString('id-ID')}</p>
+                                                    <div className="flex items-center bg-gray-100 rounded-full p-0.5">
+                                                        <button onClick={() => updateQty(item.cartId, -1)} className="w-6 h-6 rounded-full flex items-center justify-center bg-white shadow-sm"><Minus className="w-3 h-3" /></button>
+                                                        <span className="w-6 text-center font-bold text-xs">{item.qty}</span>
+                                                        <button onClick={() => updateQty(item.cartId, 1)} className="w-6 h-6 rounded-full flex items-center justify-center bg-white shadow-sm"><Plus className="w-3 h-3" /></button>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
-
-                                        {/* Expanded: Catatan & Diskon per Item */}
-                                        {isExpanded && (
-                                            <div className="px-3 pb-3 pt-1 border-t border-dashed border-gray-100 space-y-2 animate-in fade-in slide-in-from-top-1 duration-150">
-                                                {/* Catatan */}
-                                                <div>
-                                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1 mb-1">
-                                                        <MessageSquare className="w-3 h-3" /> Catatan item
-                                                    </label>
-                                                    <input
-                                                        type="text"
-                                                        value={item.itemNotes || ''}
-                                                        onChange={e => updateItemNote(item.cartId, e.target.value)}
-                                                        maxLength={100}
-                                                        placeholder="Tanpa bawang, extra saus..."
-                                                        className="w-full bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-400"
-                                                    />
-                                                </div>
-                                                {/* Diskon per Item */}
-                                                <div>
-                                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1 mb-1">
-                                                        <Percent className="w-3 h-3" /> Diskon item
-                                                    </label>
-                                                    <div className="flex gap-1.5">
-                                                        <select
-                                                            value={itemDisc?.type || 'persen'}
-                                                            onChange={e => setItemDiscount(item.cartId, e.target.value, itemDisc?.value || 0)}
-                                                            className="bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold outline-none"
-                                                        >
-                                                            <option value="persen">%</option>
-                                                            <option value="nominal">Rp</option>
-                                                        </select>
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            value={itemDisc?.value || ''}
-                                                            onChange={e => setItemDiscount(item.cartId, itemDisc?.type || 'persen', e.target.value)}
-                                                            placeholder={itemDisc?.type === 'nominal' ? '0' : '0'}
-                                                            className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-primary-400"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
-
-                {/* Ringkasan & Tombol */}
-                <div className="bg-gray-50 p-4 rounded-t-3xl border-t shadow-[0_-10px_40px_rgba(0,0,0,0.04)] shrink-0">
-                    <div className="space-y-2 mb-4">
-                        {/* Subtotal */}
-                        <div className="flex justify-between text-sm font-medium text-gray-600">
-                            <span>Subtotal</span>
-                            <span>Rp {itemsSubtotal.toLocaleString('id-ID')}</span>
-                        </div>
-
-                        {/* Diskon Item (jika ada) */}
-                        {itemDiscountTotal > 0 && (
-                            <div className="flex justify-between text-sm font-medium text-green-600">
-                                <span>Diskon Item</span>
-                                <span>- Rp {itemDiscountTotal.toLocaleString('id-ID')}</span>
+                                    );
+                                })}
                             </div>
                         )}
+                    </div>
 
-                        {/* Diskon Transaksi */}
-                        <div>
+                    {/* Summary & Checkout Buttons */}
+                    <div className="bg-gray-50 p-5 rounded-t-[40px] border-t shadow-2xl shrink-0">
+                        <div className="space-y-2 mb-6">
+                            <div className="flex justify-between text-sm font-bold text-gray-500">
+                                <span>Subtotal</span>
+                                <span>Rp {itemsSubtotal.toLocaleString('id-ID')}</span>
+                            </div>
+                            <div className="flex justify-between text-lg font-black text-primary-900 pt-2 border-t border-dashed border-gray-300">
+                                <span>Total Tagihan</span>
+                                <span>Rp {Math.round(grandTotal).toLocaleString('id-ID')}</span>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 mb-3">
                             <button
-                                onClick={() => setShowTxDiscount(!showTxDiscount)}
-                                className="flex items-center gap-1 text-xs font-semibold text-primary-600 hover:text-primary-800 transition-colors"
+                                disabled={cart.length === 0}
+                                onClick={() => setIsCheckoutOpen(true)}
+                                className="font-bold py-4 rounded-3xl text-primary-900 bg-primary-100 hover:bg-primary-200 transition-all active:scale-95 disabled:opacity-50"
                             >
-                                <Tag className="w-3.5 h-3.5" />
-                                {showTxDiscount ? 'Sembunyikan Diskon' : '+ Tambah Diskon Transaksi'}
-                                {showTxDiscount ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                Simpan Pesanan
                             </button>
-                            {showTxDiscount && (
-                                <div className="flex gap-1.5 mt-2 animate-in fade-in slide-in-from-top-1 duration-150">
-                                    <select
-                                        value={txDiscountType}
-                                        onChange={e => setTxDiscountType(e.target.value)}
-                                        className="bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs font-bold outline-none"
-                                    >
-                                        <option value="persen">%</option>
-                                        <option value="nominal">Rp</option>
-                                    </select>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        value={txDiscountValue}
-                                        onChange={e => setTxDiscountValue(e.target.value)}
-                                        placeholder="Nilai diskon..."
-                                        className="flex-1 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-primary-400"
-                                    />
-                                </div>
-                            )}
-                            {txDiscountAmount > 0 && (
-                                <div className="flex justify-between text-sm font-medium text-green-600 mt-1">
-                                    <span>Diskon Transaksi</span>
-                                    <span>- Rp {txDiscountAmount.toLocaleString('id-ID')}</span>
-                                </div>
-                            )}
+                            <button
+                                disabled={cart.length === 0}
+                                onClick={() => setIsSplitBillOpen(true)}
+                                className="font-bold py-4 rounded-3xl text-primary-900 bg-gray-200 hover:bg-gray-300 transition-all active:scale-95 disabled:opacity-50"
+                            >
+                                Split Bill
+                            </button>
                         </div>
-
-                        {/* Service Charge */}
-                        {outletData.serviceChargeActive && serviceChargeAmount > 0 && (
-                            <div className="flex justify-between text-sm font-medium text-gray-500">
-                                <span>Service Charge ({(outletData.serviceChargeRate * 100).toFixed(0)}%)</span>
-                                <span>Rp {serviceChargeAmount.toLocaleString('id-ID')}</span>
-                            </div>
-                        )}
-
-                        {/* PBJT */}
-                        {outletData.pbjtActive && (
-                            <div className="flex justify-between text-sm font-medium text-gray-500">
-                                <span>PBJT Restoran ({(outletData.pbjtRate * 100).toFixed(0)}%)</span>
-                                <span>
-                                    {outletData.pbjtMode === 'Inklusif' ? '(inklusif)' : `Rp ${Math.round(pbjtAmount).toLocaleString('id-ID')}`}
-                                </span>
-                            </div>
-                        )}
-
-                        {/* Total */}
-                        <div className="border-t border-dashed border-gray-300 pt-3 flex justify-between items-end">
-                            <span className="font-semibold text-gray-900">Total Tagihan</span>
-                            <span className="text-3xl font-bold text-primary-900 tracking-tight">
-                                Rp {Math.round(grandTotal).toLocaleString('id-ID')}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 mb-2">
                         <button
                             disabled={cart.length === 0}
-                            onClick={() => setIsCheckoutOpen(true)}
-                            className="flex items-center justify-center gap-2 font-bold py-3.5 rounded-xl text-primary-900 bg-primary-100 hover:bg-primary-200 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                            onClick={() => setIsPaymentOpen(true)}
+                            className="w-full flex items-center justify-center gap-2 font-black py-5 rounded-3xl text-white bg-accent-500 hover:bg-accent-600 shadow-xl transition-all active:scale-95 disabled:opacity-50"
                         >
-                            Hold Bill
-                        </button>
-                        <button
-                            disabled={cart.length === 0}
-                            onClick={() => setIsSplitBillOpen(true)}
-                            className="flex items-center justify-center gap-2 font-bold py-3.5 rounded-xl text-primary-900 bg-gray-100 hover:bg-gray-200 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                        >
-                            <DivideSquare className="w-4 h-4" />
-                            Split Bill
+                            <CreditCard className="w-6 h-6" />
+                            Bayar Sekarang
                         </button>
                     </div>
-                    <button
-                        disabled={cart.length === 0}
-                        onClick={() => setIsPaymentOpen(true)}
-                        className="w-full flex items-center justify-center gap-2 font-bold py-4 rounded-xl text-white bg-accent-500 hover:bg-accent-600 shadow-lg hover:shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
-                    >
-                        <CreditCard className="w-5 h-5" />
-                        Bayar Sekarang
-                    </button>
                 </div>
             </div>
 
-            {/* ── Variation Modal ── */}
+            {/* Modals */}
             {variationItem && (
                 <VariationModal
                     item={variationItem}
@@ -589,97 +469,41 @@ export default function POSClient({ initialData }) {
                     onClose={() => setVariationItem(null)}
                 />
             )}
-
-            {/* ── Checkout / Hold Modal ── */}
             <CheckoutModal
                 isOpen={isCheckoutOpen}
                 onClose={() => setIsCheckoutOpen(false)}
-                cart={cart}
-                outletData={outletData}
-                selectedCustomer={selectedCustomer}
+                cart={cart} outletData={outletData} selectedCustomer={selectedCustomer}
                 billing={{ itemsSubtotal, totalDiscountAmount, serviceChargeAmount, dpp, pbjtAmount, grandTotal }}
+                editOrderId={orderIdCtx}
+                editTableNumber={tableCtx}
                 onHoldSuccess={(orderNum, extra) => {
-                    const data = {
-                        type: 'KOT',
-                        outlet: outletData,
-                        orderNumber: orderNum,
-                        items: cart,
-                        notes: extra.notes,
-                        tableNumber: extra.tableNumber,
-                        cashier: userName
-                    };
-                    setIsCheckoutOpen(false);
-                    clearCart();
-                    setPrintData(data);
+                    setPrintData({ type: 'KOT', outlet: outletData, orderNumber: orderNum, items: cart, notes: extra.notes, tableNumber: extra.tableNumber || tableCtx, cashier: userName });
+                    setIsCheckoutOpen(false); clearCart();
+                    if (orderIdCtx) router.push('/pos/orders'); // Back to active orders if editing
                 }}
             />
-
-            {/* ── Payment Modal ── */}
             <PaymentModal
                 isOpen={isPaymentOpen}
                 onClose={() => setIsPaymentOpen(false)}
-                cart={cart}
-                outletData={outletData}
-                selectedCustomer={selectedCustomer}
+                cart={cart} outletData={outletData} selectedCustomer={selectedCustomer}
                 billing={{ itemsSubtotal, totalDiscountAmount, serviceChargeAmount, dpp, pbjtAmount, grandTotal }}
                 onPaySuccess={(receiptNum, changeAmt, method, cash) => {
-                    const data = {
-                        type: 'Receipt',
-                        outlet: outletData,
-                        receiptNumber: receiptNum,
-                        items: [...cart],
-                        itemsSubtotal,
-                        totalDiscount: totalDiscountAmount,
-                        serviceCharge: serviceChargeAmount,
-                        dpp,
-                        taxAmount: pbjtAmount,
-                        grandTotal: Math.round(grandTotal),
-                        paymentMethod: method,
-                        cashTendered: cash,
-                        changeAmount: changeAmt,
-                        customer: selectedCustomer?.name,
-                        cashier: userName
-                    };
-                    setIsPaymentOpen(false);
-                    clearCart();
-                    setPrintData(data);
+                    setPrintData({ type: 'Receipt', outlet: outletData, receiptNumber: receiptNum, items: [...cart], itemsSubtotal, totalDiscount: totalDiscountAmount, serviceCharge: serviceChargeAmount, dpp, taxAmount: pbjtAmount, grandTotal: Math.round(grandTotal), paymentMethod: method, cashTendered: cash, changeAmount: changeAmt, customer: selectedCustomer?.name, cashier: userName });
+                    setIsPaymentOpen(false); clearCart();
                 }}
             />
-
-            {/* ── Split Bill Modal ── */}
             <SplitBillModal
                 isOpen={isSplitBillOpen}
                 onClose={() => setIsSplitBillOpen(false)}
-                cart={cart}
-                outletData={outletData}
-                selectedCustomer={selectedCustomer}
+                cart={cart} outletData={outletData} selectedCustomer={selectedCustomer}
                 billing={{ itemsSubtotal, totalDiscountAmount, serviceChargeAmount, dpp, pbjtAmount, grandTotal }}
                 userName={userName}
                 onSplitSuccess={(receiptNum, parts) => {
-                    const data = {
-                        type: 'Receipt',
-                        outlet: outletData,
-                        receiptNumber: receiptNum,
-                        items: [...cart],
-                        itemsSubtotal,
-                        totalDiscount: totalDiscountAmount,
-                        serviceCharge: serviceChargeAmount,
-                        dpp,
-                        taxAmount: pbjtAmount,
-                        grandTotal: Math.round(grandTotal),
-                        paymentMethod: 'Split Bill',
-                        splitParts: parts,
-                        cashier: userName
-                    };
-                    setIsSplitBillOpen(false);
-                    clearCart();
-                    setPrintData(data);
+                    setPrintData({ type: 'Receipt', outlet: outletData, receiptNumber: receiptNum, items: [...cart], itemsSubtotal, totalDiscount: totalDiscountAmount, serviceCharge: serviceChargeAmount, dpp, taxAmount: pbjtAmount, grandTotal: Math.round(grandTotal), paymentMethod: 'Split Bill', splitParts: parts, cashier: userName });
+                    setIsSplitBillOpen(false); clearCart();
                 }}
             />
-
-            {/* ── Receipt Hidden Print ── */}
             <ReceiptPrintout data={printData} />
-        </div>
         </div>
     );
 }

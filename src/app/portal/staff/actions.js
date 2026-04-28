@@ -39,12 +39,26 @@ export async function getStaffList() {
     }
 }
 
+const PORTAL_ALLOWED_ROLES = ['Kasir', 'Pramusaji', 'Supervisor', 'Manajer', 'Admin'];
+
 export async function saveStaff(formData) {
     try {
-        const { tenant_id } = await getActiveContext();
+        const cookieStore = await cookies();
+        const tenant_id = cookieStore.get('active_tenant_id')?.value;
+        const current_user_id = cookieStore.get('session_user_id')?.value;
         if (!tenant_id) return { success: false, message: 'Invalid session' };
 
         const { id, full_name, role, email, pin, outlet_id, is_active } = formData;
+
+        // Whitelist role — Owner tidak boleh dibuat lewat form ini
+        if (!PORTAL_ALLOWED_ROLES.includes(role)) {
+            return { success: false, message: 'Role tidak valid.' };
+        }
+
+        // Cegah edit akun sendiri menjadi role lebih rendah
+        if (id && id === current_user_id) {
+            return { success: false, message: 'Anda tidak dapat mengubah role akun Anda sendiri.' };
+        }
 
         let data = {
             tenant_id,
@@ -81,8 +95,27 @@ export async function saveStaff(formData) {
 
 export async function toggleStaffStatus(id, currentStatus) {
     try {
-        const { tenant_id } = await getActiveContext();
+        const cookieStore = await cookies();
+        const tenant_id = cookieStore.get('active_tenant_id')?.value;
+        const current_user_id = cookieStore.get('session_user_id')?.value;
         if (!tenant_id) return { success: false, message: 'Invalid session' };
+
+        // Cegah nonaktifkan akun sendiri
+        if (id === current_user_id) {
+            return { success: false, message: 'Anda tidak dapat menonaktifkan akun Anda sendiri.' };
+        }
+
+        // Cegah nonaktifkan Owner
+        const { data: target } = await dbAdmin
+            .from('staff_users')
+            .select('role')
+            .eq('id', id)
+            .eq('tenant_id', tenant_id)
+            .single();
+
+        if (target?.role === 'Owner') {
+            return { success: false, message: 'Akun Owner tidak dapat dinonaktifkan.' };
+        }
 
         const { error } = await dbAdmin
             .from('staff_users')

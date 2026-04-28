@@ -22,14 +22,19 @@ const MONTH_NAMES_ID = [
  * Sanksi = 2% × pajak terutang per bulan keterlambatan.
  */
 function hitungSanksi(year, month, pajakTerutang) {
-    const batasTanggal = new Date(year, month, 15); // month = bulan berikutnya (0-indexed sudah +1)
+    // Batas setor: tanggal 15 bulan berikutnya
+    const batasTanggal = new Date(year, month, 15); // month sudah +1 (0-indexed), jadi ini bulan berikutnya
     const today = new Date();
     if (today <= batasTanggal) return 0;
 
-    // Hitung selisih bulan
-    const diffMs = today - batasTanggal;
-    const diffBulan = Math.ceil(diffMs / (1000 * 60 * 60 * 24 * 30));
-    return Math.round(pajakTerutang * 0.02 * diffBulan);
+    // Hitung selisih bulan kalender (bukan hari/30)
+    const diffBulan =
+        (today.getFullYear() - batasTanggal.getFullYear()) * 12 +
+        (today.getMonth() - batasTanggal.getMonth()) +
+        (today.getDate() >= batasTanggal.getDate() ? 0 : -1);
+
+    const bulanTerlambat = Math.max(1, diffBulan);
+    return Math.round(pajakTerutang * 0.02 * bulanTerlambat);
 }
 
 /**
@@ -125,7 +130,8 @@ export async function getSPTPDData(year, month) {
         }), { totalGross: 0, totalDPP: 0, totalPBJT: 0, txCount: 0 });
 
         // Gunakan data pbjt_periods jika ada, fallback ke kalkulasi dari orders
-        const totalGross = masaPajak ? Number(masaPajak.total_gross || masaPajak.total_dpp) : totalFromOrders.totalGross;
+        // totalGross di sini adalah total penjualan bruto (sebelum pajak), bukan DPP
+        const totalGross = masaPajak ? Number(masaPajak.total_gross || masaPajak.total_dpp) : totalFromOrders.totalDPP;
         const totalDPP = masaPajak ? Number(masaPajak.total_dpp) : totalFromOrders.totalDPP;
         const totalPBJT = masaPajak ? Number(masaPajak.total_pbjt) : totalFromOrders.totalPBJT;
         const txCount = masaPajak ? masaPajak.tx_count : totalFromOrders.txCount;
@@ -223,6 +229,8 @@ export async function saveSPTPDNumber(year, month, nomorBPKPD) {
     }
 }
 
+const LOCK_ALLOWED_ROLES = ['Owner', 'Admin', 'Manajer'];
+
 /**
  * Kunci masa pajak setelah SPTPD diserahkan
  */
@@ -233,6 +241,18 @@ export async function lockMasaPajak(year, month, cookieUserId) {
 
         const cookieStore = await cookies();
         const userId = cookieUserId || cookieStore.get('session_user_id')?.value;
+
+        // Cek role — hanya Manajer/Admin/Owner yang boleh kunci masa pajak
+        const { data: userRow } = await dbAdmin
+            .from('staff_users')
+            .select('role')
+            .eq('id', userId)
+            .eq('tenant_id', tenant_id)
+            .single();
+
+        if (!userRow || !LOCK_ALLOWED_ROLES.includes(userRow.role)) {
+            return { success: false, message: 'Anda tidak memiliki izin untuk mengunci masa pajak.' };
+        }
 
         const { error } = await dbAdmin
             .from('pbjt_periods')

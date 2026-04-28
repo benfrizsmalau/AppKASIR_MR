@@ -3,6 +3,19 @@
 import { dbAdmin } from '@/lib/supabase';
 import { cookies } from 'next/headers';
 
+// Helper: tanggal lokal WIB (UTC+7) dalam format YYYY-MM-DD
+function getWIBDateString(date = new Date()) {
+    return date.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+}
+
+// Helper: start dan end hari dalam WIB, dikembalikan sebagai ISO string UTC
+function getWIBDayRange(dateStr) {
+    // dateStr: 'YYYY-MM-DD' (WIB)
+    const start = new Date(`${dateStr}T00:00:00+07:00`);
+    const end = new Date(`${dateStr}T23:59:59.999+07:00`);
+    return { start: start.toISOString(), end: end.toISOString() };
+}
+
 async function getActiveContext() {
     const cookieStore = await cookies();
     const tenant_id = cookieStore.get('active_tenant_id')?.value;
@@ -16,10 +29,12 @@ export async function getSalesReport(startDate, endDate) {
         const { tenant_id, outlet_id } = await getActiveContext();
         if (!tenant_id) return { success: false, message: 'Invalid session' };
 
-        // Default to today if no dates provided
-        const now = new Date();
-        const start = startDate ? new Date(startDate) : new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const end = endDate ? new Date(endDate) : new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+        // Default ke hari ini dalam WIB, bukan UTC
+        const todayWIB = getWIBDateString();
+        const startDateStr = startDate || todayWIB;
+        const endDateStr = endDate || todayWIB;
+        const { start: startISO } = getWIBDayRange(startDateStr);
+        const { end: endISO } = getWIBDayRange(endDateStr);
 
         // 1. Fetch Orders in range
         const { data: orders, error: ordersErr } = await dbAdmin
@@ -31,14 +46,13 @@ export async function getSalesReport(startDate, endDate) {
             `)
             .eq('tenant_id', tenant_id)
             .eq('outlet_id', outlet_id)
-            .gte('created_at', start.toISOString())
-            .lte('created_at', end.toISOString())
+            .gte('created_at', startISO)
+            .lte('created_at', endISO)
             .order('created_at', { ascending: false });
 
         if (ordersErr) throw ordersErr;
 
-        // 2. Fetch Top Selling Items
-        // Note: Complex aggregations often better via SQL functions in Supabase, but for now we'll aggregate here or via a simple select
+        // 2. Fetch Top Selling Items — filter outlet_id via order_id join
         const { data: topItems, error: itemsErr } = await dbAdmin
             .from('order_items')
             .select(`
@@ -47,8 +61,7 @@ export async function getSalesReport(startDate, endDate) {
                 menu_items (name)
             `)
             .eq('tenant_id', tenant_id)
-            .gte('created_at', start.toISOString())
-            .lte('created_at', end.toISOString());
+            .in('order_id', (orders || []).map(o => o.id));
 
         if (itemsErr) throw itemsErr;
 
@@ -58,8 +71,8 @@ export async function getSalesReport(startDate, endDate) {
             .select('*')
             .eq('tenant_id', tenant_id)
             .eq('outlet_id', outlet_id)
-            .gte('created_at', start.toISOString())
-            .lte('created_at', end.toISOString());
+            .gte('created_at', startISO)
+            .lte('created_at', endISO);
 
         if (debtErr) throw debtErr;
 
@@ -111,7 +124,7 @@ export async function getSalesReport(startDate, endDate) {
                     const method = pay.payment_method || 'Lainnya';
                     if (!paymentMap[method]) paymentMap[method] = { method, count: 0, total: 0 };
                     paymentMap[method].count += 1;
-                    paymentMap[method].total += Number(pay.amount || ord.grand_total);
+                    paymentMap[method].total += Number(pay.amount_paid || 0);
                 });
             } else if (ord.is_credit) {
                 if (!paymentMap['Hutang']) paymentMap['Hutang'] = { method: 'Hutang', count: 0, total: 0 };
@@ -146,9 +159,8 @@ export async function getShiftSummary(shiftDate) {
         const { tenant_id, outlet_id } = await getActiveContext();
         if (!tenant_id) return { success: false, message: 'Invalid session' };
 
-        const date = shiftDate || new Date().toISOString().split('T')[0];
-        const start = `${date}T00:00:00.000Z`;
-        const end = `${date}T23:59:59.999Z`;
+        const date = shiftDate || getWIBDateString();
+        const { start, end } = getWIBDayRange(date);
 
         const { data: orders, error } = await dbAdmin
             .from('orders')
@@ -203,13 +215,25 @@ export async function getShiftSummary(shiftDate) {
 
 export async function getCreditReport() {
     try {
-        const { tenant_id } = await getActiveContext();
+        const { tenant_id, outlet_id } = await getActiveContext();
         if (!tenant_id) return { success: false, message: 'Invalid session' };
+
+        // Ambil order hutang outlet ini untuk dapat customer_id yang relevan
+        const { data: creditOrders } = await dbAdmin
+            .from('orders')
+            .select('customer_id')
+            .eq('tenant_id', tenant_id)
+            .eq('outlet_id', outlet_id)
+            .eq('is_credit', true)
+            .not('customer_id', 'is', null);
+
+        const relevantCustomerIds = [...new Set((creditOrders || []).map(o => o.customer_id))];
 
         const { data, error } = await dbAdmin
             .from('customers')
             .select('*')
             .eq('tenant_id', tenant_id)
+            .in('id', relevantCustomerIds.length > 0 ? relevantCustomerIds : ['00000000-0000-0000-0000-000000000000'])
             .gt('current_debt', 0)
             .order('current_debt', { ascending: false });
 
@@ -279,7 +303,7 @@ export async function getMasaPajakList() {
             if (!monthMap[key]) {
                 monthMap[key] = { year: d.getFullYear(), month: d.getMonth() + 1, totalDPP: 0, totalPBJT: 0, txCount: 0 };
             }
-            monthMap[key].totalDPP += Number(ord.subtotal);
+            monthMap[key].totalDPP += Number(ord.dpp_total); // dpp_total, bukan subtotal
             monthMap[key].totalPBJT += Number(ord.pbjt_total);
             monthMap[key].txCount += 1;
         });
@@ -301,54 +325,11 @@ export async function getMasaPajakList() {
     }
 }
 
-export async function lockMasaPajak(year, month) {
-    'use server';
-    try {
-        const { tenant_id, outlet_id } = await getActiveContext();
-        const cookieStore = await cookies();
-        const user_id = cookieStore.get('session_user_id')?.value;
-        if (!tenant_id) return { success: false, message: 'Invalid session' };
-
-        // Get period totals from orders
-        const startDate = new Date(year, month - 1, 1).toISOString();
-        const endDate = new Date(year, month, 0, 23, 59, 59).toISOString();
-
-        const { data: orders } = await dbAdmin
-            .from('orders')
-            .select('subtotal, pbjt_total, grand_total')
-            .eq('tenant_id', tenant_id)
-            .eq('outlet_id', outlet_id)
-            .eq('status', 'Selesai')
-            .gte('created_at', startDate)
-            .lte('created_at', endDate);
-
-        const totalDPP = (orders || []).reduce((sum, o) => sum + Number(o.subtotal), 0);
-        const totalPBJT = (orders || []).reduce((sum, o) => sum + Number(o.pbjt_total), 0);
-        const totalGross = (orders || []).reduce((sum, o) => sum + Number(o.grand_total), 0);
-        const txCount = (orders || []).length;
-
-        const { error } = await dbAdmin
-            .from('pbjt_periods')
-            .upsert({
-                tenant_id,
-                outlet_id,
-                year: Number(year),
-                month: Number(month),
-                is_locked: true,
-                locked_at: new Date().toISOString(),
-                locked_by_user_id: user_id,
-                total_dpp: totalDPP,
-                total_pbjt: totalPBJT,
-                total_gross: totalGross,
-                tx_count: txCount,
-            }, { onConflict: 'tenant_id,outlet_id,year,month' });
-
-        if (error) throw error;
-        return { success: true };
-    } catch (err) {
-        console.error('Error locking masa pajak:', err);
-        return { success: false, message: 'Gagal mengunci masa pajak.' };
-    }
+// lockMasaPajak dipindahkan ke sptpd/actions.js (satu sumber kebenaran)
+// Async wrapper untuk backward compatibility — 'use server' tidak izinkan re-export langsung
+import { lockMasaPajak as _lockMasaPajak } from './sptpd/actions';
+export async function lockMasaPajak(year, month, cookieUserId) {
+    return _lockMasaPajak(year, month, cookieUserId);
 }
 
 export async function getPBJTMasaPajak(year, month) {

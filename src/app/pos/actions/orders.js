@@ -38,7 +38,7 @@ export async function holdOrderSubmit({ cartData, tableId, orderType, itemsSubto
         const { tenant_id, outlet_id, user_id } = await getActiveContext();
         if (!tenant_id || !outlet_id || !user_id) return { success: false, message: 'Sesi Kasir tidak valid.' };
 
-        const orderNumber = `ORD-${Date.now().toString().slice(-6)}`;
+        const orderNumber = `ORD-${Date.now().toString(36).toUpperCase().slice(-5)}${Math.random().toString(36).toUpperCase().slice(-3)}`;
 
         const orderPayload = {
             tenant_id,
@@ -143,9 +143,27 @@ export async function cancelOrderItem(orderId, itemId, reason) {
 
         const newSubtotal = (remainingItems || []).reduce((sum, it) => sum + Number(it.subtotal), 0);
 
+        // Ambil order saat ini untuk recalculate proporsional
+        const { data: currentOrder } = await dbAdmin
+            .from('orders')
+            .select('subtotal, dpp_total, pbjt_total, service_charge_total, discount_total, grand_total')
+            .eq('id', orderId)
+            .eq('tenant_id', tenant_id)
+            .single();
+
+        const oldSubtotal = Number(currentOrder?.subtotal || 1);
+        const ratio = oldSubtotal > 0 ? newSubtotal / oldSubtotal : 0;
+
         await dbAdmin
             .from('orders')
-            .update({ subtotal: newSubtotal, grand_total: newSubtotal })
+            .update({
+                subtotal: newSubtotal,
+                dpp_total: Math.round(Number(currentOrder?.dpp_total || 0) * ratio),
+                pbjt_total: Math.round(Number(currentOrder?.pbjt_total || 0) * ratio),
+                service_charge_total: Math.round(Number(currentOrder?.service_charge_total || 0) * ratio),
+                discount_total: Math.round(Number(currentOrder?.discount_total || 0) * ratio),
+                grand_total: Math.round(Number(currentOrder?.grand_total || 0) * ratio),
+            })
             .eq('id', orderId)
             .eq('tenant_id', tenant_id);
 
@@ -249,10 +267,16 @@ export async function processRefund(orderId, reason) {
     }
 }
 
+const VALID_ORDER_STATUSES = ['Baru', 'Dikirim ke Dapur', 'Sebagian Siap', 'Siap Saji', 'Disajikan', 'Menunggu Bayar', 'Selesai', 'Dibatalkan'];
+
 export async function updateOrderStatus(orderId, status) {
     try {
         const { tenant_id } = await getActiveContext();
         if (!tenant_id) return { success: false, message: 'Invalid session' };
+
+        if (!VALID_ORDER_STATUSES.includes(status)) {
+            return { success: false, message: `Status tidak valid: ${status}` };
+        }
 
         const { error } = await dbAdmin
             .from('orders')
@@ -265,5 +289,67 @@ export async function updateOrderStatus(orderId, status) {
     } catch (err) {
         console.error('Error updating order status:', err);
         return { success: false, message: 'Gagal memperbarui status pesanan.' };
+    }
+}
+
+export async function addItemsToOrder({ orderId, cartData, itemsSubtotal, discountTotal, serviceChargeAmount, dppTotal, taxAmount, grandTotal, notes }) {
+    try {
+        const { tenant_id, outlet_id, user_id } = await getActiveContext();
+        if (!tenant_id || !outlet_id || !user_id) return { success: false, message: 'Sesi tidak valid.' };
+
+        // 1. Fetch current order to get existing totals
+        const { data: order, error: fetchErr } = await dbAdmin
+            .from('orders')
+            .select('*')
+            .eq('id', orderId)
+            .eq('tenant_id', tenant_id)
+            .single();
+
+        if (fetchErr || !order) throw new Error('Pesanan tidak ditemukan.');
+
+        // 2. Insert new items
+        const orderItemsPayload = cartData.map(item => ({
+            tenant_id,
+            order_id: orderId,
+            menu_item_id: item.id,
+            quantity: item.qty,
+            unit_price: item.price,
+            subtotal: item.price * item.qty,
+            notes: item.itemNotes || item.notes || '',
+            variation_label: item.variationLabels?.join(', ') || null,
+            status: 'Baru' // Distinguish new additions
+        }));
+
+        const { error: itemsErr } = await dbAdmin
+            .from('order_items')
+            .insert(orderItemsPayload);
+
+        if (itemsErr) throw itemsErr;
+
+        // 3. Update Order Totals (Summing up)
+        const updatedPayload = {
+            subtotal: Number(order.subtotal) + itemsSubtotal,
+            dpp_total: Number(order.dpp_total) + dppTotal,
+            pbjt_total: Number(order.pbjt_total) + taxAmount,
+            discount_total: Number(order.discount_total) + discountTotal,
+            service_charge_total: Number(order.service_charge_total) + serviceChargeAmount,
+            grand_total: Number(order.grand_total) + grandTotal,
+            notes: notes
+                ? (order.notes ? `${order.notes}\n[Tambahan]: ${notes}` : notes)
+                : order.notes
+        };
+
+        const { error: updateErr } = await dbAdmin
+            .from('orders')
+            .update(updatedPayload)
+            .eq('id', orderId);
+
+        if (updateErr) throw updateErr;
+
+        return { success: true, orderNumber: order.order_number };
+
+    } catch (err) {
+        console.error('Error adding items to order:', err);
+        return { success: false, message: err.message || 'Gagal menambahkan item ke pesanan.' };
     }
 }

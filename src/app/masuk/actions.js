@@ -98,19 +98,44 @@ export async function processOwnerSignOut() {
     }
 }
 
-export async function sendPasswordReset(email) {
-    // Placeholder — pada versi produksi terhubung ke email service (SendGrid/SES)
+export async function resetPassword(email, newPassword) {
     try {
-        const { data: user } = await dbAdmin
+        if (!email || !newPassword) {
+            return { success: false, message: 'Email dan kata sandi baru wajib diisi.' };
+        }
+
+        if (newPassword.length < 6) {
+            return { success: false, message: 'Kata sandi minimal 6 karakter.' };
+        }
+
+        // Cek apakah email terdaftar sebagai Owner/Admin
+        const { data: user, error } = await dbAdmin
             .from('staff_users')
             .select('id, full_name')
             .eq('email', email.toLowerCase().trim())
             .in('role', OWNER_ROLES)
             .maybeSingle();
 
-        // Selalu return success agar tidak membocorkan apakah email terdaftar
-        return { success: true, message: 'Jika email terdaftar, instruksi reset akan dikirim ke inbox Anda.' };
+        if (error || !user) {
+            return { success: false, message: 'Email tidak ditemukan atau bukan akun pemilik.' };
+        }
+
+        // Hash password baru
+        const newHash = await bcrypt.hash(newPassword, 10);
+
+        // Update password di database
+        const { error: updateError } = await dbAdmin
+            .from('staff_users')
+            .update({ pin_hash: newHash })
+            .eq('id', user.id);
+
+        if (updateError) {
+            return { success: false, message: 'Gagal memperbarui kata sandi. Coba lagi.' };
+        }
+
+        return { success: true, message: `Kata sandi berhasil diperbarui. Silakan masuk kembali.` };
     } catch (err) {
-        return { success: true, message: 'Jika email terdaftar, instruksi reset akan dikirim ke inbox Anda.' };
+        console.error('Reset Password Error:', err);
+        return { success: false, message: 'Terjadi kesalahan sistem. Coba lagi nanti.' };
     }
 }

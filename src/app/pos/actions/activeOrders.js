@@ -5,14 +5,15 @@ import { cookies } from 'next/headers';
 
 async function getActiveContext() {
     const cookieStore = await cookies();
+    const tenant_id = cookieStore.get('active_tenant_id')?.value;
     const outlet_id = cookieStore.get('active_outlet_id')?.value;
-    return { outlet_id };
+    return { tenant_id, outlet_id };
 }
 
 export async function getActiveOrders() {
     try {
-        const { outlet_id } = await getActiveContext();
-        if (!outlet_id) return { success: false, message: 'Invalid session' };
+        const { tenant_id, outlet_id } = await getActiveContext();
+        if (!tenant_id || !outlet_id) return { success: false, message: 'Invalid session' };
 
         const { data: orders, error } = await dbAdmin
             .from('orders')
@@ -24,8 +25,13 @@ export async function getActiveOrders() {
              status, 
              created_at,
              subtotal,
+             dpp_total,
              pbjt_total,
+             service_charge_total,
+             discount_total,
              notes,
+             customer_id,
+             customers ( id, name, type, credit_limit, current_debt ),
              table_id,
              tables ( table_number ),
              order_items (
@@ -34,6 +40,7 @@ export async function getActiveOrders() {
                  menu_items ( name )
              )
           `)
+            .eq('tenant_id', tenant_id)
             .eq('outlet_id', outlet_id)
             .neq('status', 'Selesai')
             .neq('status', 'Dibatalkan')
@@ -41,7 +48,14 @@ export async function getActiveOrders() {
 
         if (error) throw error;
 
-        return { success: true, orders };
+        // Fetch Outlet Data
+        const { data: outlet } = await dbAdmin
+            .from('outlets')
+            .select('name, address, phone, npwpd, pbjt_active, pbjt_rate, pbjt_mode')
+            .eq('id', outlet_id)
+            .single();
+
+        return { success: true, orders, outlet };
     } catch (err) {
         console.error('Error fetching active orders:', err);
         return { success: false, message: 'Gagal mengambil data pesanan aktif.' };

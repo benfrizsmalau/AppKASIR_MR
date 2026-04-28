@@ -18,6 +18,7 @@ export default function KDSClient({ initialOrders }) {
     const router = useRouter();
     const [orders, setOrders] = useState(initialOrders || []);
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [kdsError, setKdsError] = useState(null);
 
     // Auto-refresh every 30 seconds
     useEffect(() => {
@@ -40,11 +41,13 @@ export default function KDSClient({ initialOrders }) {
     };
 
     const handleStatusMove = async (orderId, nextStatus) => {
+        setKdsError(null);
         const res = await updateOrderStatus(orderId, nextStatus);
         if (res.success) {
             router.refresh();
         } else {
-            alert(res.message);
+            setKdsError(res.message);
+            setTimeout(() => setKdsError(null), 4000);
         }
     };
 
@@ -82,6 +85,14 @@ export default function KDSClient({ initialOrders }) {
                 </div>
             </header>
 
+            {/* Error Toast */}
+            {kdsError && (
+                <div className="mx-8 mt-4 px-5 py-3 bg-red-500/20 border border-red-500/40 rounded-2xl text-red-300 font-bold text-sm flex items-center justify-between">
+                    <span>{kdsError}</span>
+                    <button onClick={() => setKdsError(null)} className="ml-4 text-red-400 hover:text-red-200">✕</button>
+                </div>
+            )}
+
             {/* Board Area */}
             <main className="flex-1 overflow-x-auto p-8 flex gap-8">
                 {orders.length === 0 ? (
@@ -102,14 +113,14 @@ export default function KDSClient({ initialOrders }) {
                             let statusColor = "bg-slate-800 border-white/10 text-slate-400";
                             let icon = <Clock className="w-4 h-4" />;
                             let buttonText = "Masak Sekarang";
-                            let nextStatus = "Sedang Dimasak";
+                            let nextStatus = "Dikirim ke Dapur";
 
-                            if (order.status === 'Sedang Dimasak') {
+                            if (order.status === 'Dikirim ke Dapur') {
                                 statusColor = "bg-blue-500/10 border-blue-500/30 text-blue-400";
                                 icon = <Flame className="w-4 h-4 animate-pulse text-orange-400" />;
                                 buttonText = "Tandai Siap Saji";
-                                nextStatus = "Siap";
-                            } else if (order.status === 'Siap') {
+                                nextStatus = "Siap Saji";
+                            } else if (order.status === 'Siap Saji') {
                                 statusColor = "bg-green-500/10 border-green-500/30 text-green-400";
                                 icon = <Bell className="w-4 h-4 animate-bounce" />;
                                 buttonText = "Selesaikan / Diambil";
@@ -185,14 +196,14 @@ export default function KDSClient({ initialOrders }) {
                                     <div className="p-5 bg-white/2 border-t border-white/5">
                                         <button
                                             onClick={() => handleStatusMove(order.id, nextStatus)}
-                                            className={`w-full py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-3 transition-all active:scale-[0.98] ${order.status === 'Sedang Dimasak'
+                                            className={`w-full py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-3 transition-all active:scale-[0.98] ${order.status === 'Dikirim ke Dapur'
                                                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30 ring-4 ring-blue-600/10'
-                                                    : order.status === 'Siap'
+                                                    : order.status === 'Siap Saji'
                                                         ? 'bg-green-600 text-white shadow-lg shadow-green-600/30 ring-4 ring-green-600/10'
                                                         : 'bg-white text-slate-900 shadow-xl'
                                                 }`}
                                         >
-                                            {order.status === 'Sedang Dimasak' ? <Bell className="w-5 h-5" /> : <Flame className="w-5 h-5" />}
+                                            {order.status === 'Dikirim ke Dapur' ? <Bell className="w-5 h-5" /> : <Flame className="w-5 h-5" />}
                                             {buttonText}
                                         </button>
                                     </div>

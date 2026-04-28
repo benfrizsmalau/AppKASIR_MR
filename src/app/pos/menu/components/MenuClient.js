@@ -101,7 +101,7 @@ export default function MenuClient({ initialCategories, initialMenuItems, initia
         setIsCatModalOpen(true);
     };
 
-    const handleOpenStockModal = (item) => {
+    const handleOpenStockModal = (item = null) => {
         setStockItem(item);
         setIsStockModalOpen(true);
     };
@@ -135,7 +135,7 @@ export default function MenuClient({ initialCategories, initialMenuItems, initia
         const formData = new FormData(e.target);
         setIsLoading(true);
         const res = await adjustStock({
-            menuItemId: stockItem.id,
+            menuItemId: stockItem?.id || formData.get('menuItemId'),
             type: formData.get('type'),
             quantity: formData.get('quantity'),
             notes: formData.get('notes')
@@ -243,7 +243,11 @@ export default function MenuClient({ initialCategories, initialMenuItems, initia
                         />
                     </div>
                     <button
-                        onClick={() => activeTab === 'Menu' ? handleOpenMenuModal() : handleOpenCatModal()}
+                        onClick={() => {
+                            if (activeTab === 'Menu') handleOpenMenuModal();
+                            else if (activeTab === 'Kategori') handleOpenCatModal();
+                            else handleOpenStockModal();
+                        }}
                         className="bg-primary-900 text-accent-400 hover:bg-primary-800 px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all active:scale-95"
                     >
                         <Plus className="w-5 h-5" />
@@ -254,64 +258,88 @@ export default function MenuClient({ initialCategories, initialMenuItems, initia
 
             <main className="flex-1 overflow-y-auto p-8">
                 {activeTab === "Menu" ? (
-                    <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2">
-                        {filteredMenu.map(item => (
-                            <div key={item.id} className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-xl transition-all overflow-hidden flex flex-col group">
-                                <div className="aspect-square bg-gray-50 relative overflow-hidden">
-                                    {item.image_url ? (
-                                        <img src={item.image_url} alt={item.name} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-gray-200">
-                                            <ImageIcon className="w-12 h-12" />
-                                        </div>
-                                    )}
-                                    <div className="absolute top-2 left-2">
-                                        <span className={`px-1.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest ${item.status === 'Tersedia' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
-                                            {item.status}
-                                        </span>
-                                    </div>
-                                    <div className="absolute top-2 right-2 flex gap-1 opacity-100 transition-all">
-                                        <button onClick={() => handleOpenMenuModal(item)} title="Edit" className="p-1.5 bg-white/90 backdrop-blur rounded-lg text-gray-700 hover:bg-white shadow-sm transition-colors">
-                                            <Edit2 className="w-3.5 h-3.5" />
-                                        </button>
-                                        <button onClick={() => onDeleteMenu(item.id, item.name)} title="Hapus" className="p-1.5 bg-white/90 backdrop-blur rounded-lg text-red-500 hover:bg-red-50 shadow-sm transition-colors">
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
-                                    </div>
-                                </div>
+                    <div className="space-y-10">
+                        {(searchTerm ? [null] : categories).map(cat => {
+                            const itemsInCat = filteredMenu.filter(item => 
+                                !cat || item.category_id === cat.id
+                            );
+                            
+                            if (itemsInCat.length === 0) return null;
 
-                                <div className="p-2 flex-1 flex flex-col">
-                                    <div className="flex justify-between items-start mb-1 gap-1">
-                                        <span className="text-[8px] font-black text-primary-400 uppercase tracking-widest truncate">{item.categories?.name}</span>
-                                        <p className="text-[10px] font-black text-primary-900 leading-none shrink-0">Rp {Number(item.price).toLocaleString('id-ID')}</p>
+                            return (
+                                <div key={cat ? cat.id : 'search-results'} className="space-y-4">
+                                    <div className="flex items-center gap-4">
+                                        <h2 className="text-xs font-black text-primary-900 bg-accent-400 px-4 py-1.5 rounded-full uppercase tracking-widest shadow-sm">
+                                            {cat ? cat.name : `Hasil Pencarian: "${searchTerm}"`}
+                                        </h2>
+                                        <div className="flex-1 h-px bg-gray-200/60"></div>
                                     </div>
-                                    <h3 className="text-[10px] font-bold text-gray-900 leading-none mb-1.5 h-6 line-clamp-2">{item.name}</h3>
 
-                                    {/* Stock Section */}
-                                    <div className="bg-gray-50 rounded-lg p-1.5 flex items-center justify-between border border-gray-100">
-                                        <div className="flex flex-col">
-                                            <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest leading-none mb-0.5">Stok</p>
-                                            <div className="flex items-center gap-1">
-                                                <span className={`text-xs font-black leading-none ${item.track_stock && Number(item.current_stock) <= Number(item.min_stock) ? 'text-red-500' : 'text-gray-950'}`}>
-                                                    {item.track_stock ? item.current_stock : '∞'}
-                                                </span>
-                                                {item.track_stock && Number(item.current_stock) <= Number(item.min_stock) && (
-                                                    <AlertTriangle className="w-2.5 h-2.5 text-red-500" />
-                                                )}
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-4">
+                                        {itemsInCat.map(item => (
+                                            <div key={item.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all overflow-hidden flex flex-col group relative">
+                                                <div className="aspect-square bg-gray-50 relative overflow-hidden">
+                                                    {item.image_url ? (
+                                                        <img src={item.image_url} alt={item.name} className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-gray-200">
+                                                            <ImageIcon className="w-12 h-12 opacity-20" />
+                                                        </div>
+                                                    )}
+                                                    
+                                                    {/* Status Badge */}
+                                                    <div className="absolute top-2 left-2">
+                                                        <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest shadow-sm border border-white/20 ${item.status === 'Tersedia' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                                                            {item.status}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Action Hover */}
+                                                    <div className="absolute inset-0 bg-primary-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
+                                                        <button onClick={() => handleOpenMenuModal(item)} title="Edit" className="p-2.5 bg-white rounded-xl text-primary-900 hover:bg-accent-400 transition-all active:scale-90 shadow-xl">
+                                                            <Edit2 className="w-4 h-4" />
+                                                        </button>
+                                                        <button onClick={() => onDeleteMenu(item.id, item.name)} title="Hapus" className="p-2.5 bg-white rounded-xl text-red-500 hover:bg-red-50 transition-all active:scale-90 shadow-xl">
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <div className="p-3 flex-1 flex flex-col justify-between gap-2">
+                                                    <div>
+                                                        <p className="text-[10px] font-black text-primary-950 leading-tight mb-1 h-8 line-clamp-2 uppercase tracking-tight">{item.name}</p>
+                                                        <p className="text-xs font-black text-accent-600">Rp {Number(item.price).toLocaleString('id-ID')}</p>
+                                                    </div>
+
+                                                    {/* Stock Section */}
+                                                    <div className="bg-gray-50 rounded-xl p-2 flex items-center justify-between border border-gray-100 group-hover:bg-primary-50 transition-colors">
+                                                        <div className="flex flex-col">
+                                                            <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Stock</p>
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className={`text-[11px] font-black leading-none ${item.track_stock && Number(item.current_stock) <= Number(item.min_stock) ? 'text-red-500 animate-pulse' : 'text-primary-900'}`}>
+                                                                    {item.track_stock ? item.current_stock : '∞'}
+                                                                </span>
+                                                                {item.track_stock && Number(item.current_stock) <= Number(item.min_stock) && (
+                                                                    <div className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]"></div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        {item.track_stock && (
+                                                            <button
+                                                                onClick={() => handleOpenStockModal(item)}
+                                                                className="p-1.5 bg-white border border-gray-200 rounded-lg group-hover:border-primary-400 text-gray-400 group-hover:text-primary-600 transition-all shadow-sm active:scale-90"
+                                                            >
+                                                                <RefreshCw className="w-3 h-3" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                        {item.track_stock && (
-                                            <button
-                                                onClick={() => handleOpenStockModal(item)}
-                                                className="p-1 bg-white border border-gray-200 rounded-md hover:border-primary-500 hover:text-primary-500 transition-all"
-                                            >
-                                                <RefreshCw className="w-2.5 h-2.5" />
-                                            </button>
-                                        )}
+                                        ))}
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 ) : activeTab === "Kategori" ? (
                     <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm">
@@ -638,11 +666,24 @@ export default function MenuClient({ initialCategories, initialMenuItems, initia
             )}
 
             {/* MODAL STOCK ADJUSTMENT */}
-            {isStockModalOpen && stockItem && (
+            {isStockModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-primary-900/60 backdrop-blur-sm">
                     <div className="bg-white w-full max-w-md rounded-[40px] shadow-2xl overflow-hidden p-10">
                         <h2 className="text-2xl font-black text-primary-900 leading-tight mb-2">Penyesuaian Stok</h2>
-                        <p className="text-gray-500 font-medium mb-8">{stockItem.name}</p>
+                        
+                        {stockItem ? (
+                            <p className="text-gray-500 font-medium mb-8">{stockItem.name}</p>
+                        ) : (
+                            <div className="mb-6">
+                                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Pilih Menu</label>
+                                <select name="menuItemId" required className="w-full bg-gray-50 rounded-2xl p-4 border border-gray-100 focus:bg-white outline-none font-bold">
+                                    <option value="">-- Pilih Menu Item --</option>
+                                    {menuItems.map(item => (
+                                        <option key={item.id} value={item.id}>{item.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
 
                         <form onSubmit={onAdjustStockSubmit} className="space-y-6">
                             <div>

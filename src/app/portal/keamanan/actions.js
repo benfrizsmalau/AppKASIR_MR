@@ -76,6 +76,16 @@ export async function terminateSession(sessionId) {
             .eq('user_id', userId);
 
         if (error) throw error;
+
+        // Jika sesi yang diterminasi adalah sesi aktif saat ini, clear cookie
+        const cookieStore = await cookies();
+        const currentSessionId = cookieStore.get('portal_session_id')?.value;
+        if (currentSessionId === sessionId) {
+            cookieStore.delete('session_user_id');
+            cookieStore.delete('active_tenant_id');
+            cookieStore.delete('active_outlet_id');
+        }
+
         revalidatePath('/portal/keamanan');
         return { success: true };
     } catch (err) {

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Search, History, Calendar, FileText, ChevronRight, Ban, CheckCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Search, History, Calendar, FileText, ChevronRight, Ban, CheckCircle, RefreshCw } from "lucide-react";
 
 export default function HistoryClient({ initialRecords }) {
+    const router = useRouter();
     const [searchTerm, setSearchTerm] = useState("");
 
     const filteredRecords = initialRecords?.filter(rec =>
@@ -37,6 +39,13 @@ export default function HistoryClient({ initialRecords }) {
                         <button className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-3 rounded-xl hover:bg-gray-50 font-bold shadow-sm transition-all active:scale-95">
                             <Calendar className="w-5 h-5" /> Hari Ini
                         </button>
+                        <button
+                            onClick={() => router.refresh()}
+                            className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-3 rounded-xl hover:bg-gray-50 font-bold shadow-sm transition-all active:scale-95"
+                            title="Muat ulang data"
+                        >
+                            <RefreshCw className="w-5 h-5" />
+                        </button>
                     </div>
                 </div>
 
@@ -64,8 +73,8 @@ export default function HistoryClient({ initialRecords }) {
                             filteredRecords.map((rec) => (
                                 <div key={rec.id} className="grid grid-cols-7 items-center px-6 py-5 hover:bg-gray-50/50 transition-colors group cursor-pointer">
                                     <div className="col-span-2 flex items-start gap-4">
-                                        <div className={`p-3 rounded-xl shrink-0 ${rec.status === 'Selesai' ? 'bg-green-100 text-green-600' : rec.status === 'Batal' ? 'bg-red-100 text-red-600' : 'bg-primary-100 text-primary-600'}`}>
-                                            {rec.status === 'Selesai' ? <CheckCircle className="w-6 h-6" /> : rec.status === 'Batal' ? <Ban className="w-6 h-6" /> : <FileText className="w-6 h-6" />}
+                                        <div className={`p-3 rounded-xl shrink-0 ${rec.status === 'Selesai' ? 'bg-green-100 text-green-600' : rec.status === 'Dibatalkan' ? 'bg-red-100 text-red-600' : 'bg-primary-100 text-primary-600'}`}>
+                                            {rec.status === 'Selesai' ? <CheckCircle className="w-6 h-6" /> : rec.status === 'Dibatalkan' ? <Ban className="w-6 h-6" /> : <FileText className="w-6 h-6" />}
                                         </div>
                                         <div>
                                             <p className="font-black text-gray-900 group-hover:text-primary-700 transition-colors leading-tight">{rec.order_number}</p>
@@ -101,10 +110,10 @@ export default function HistoryClient({ initialRecords }) {
                                             ) : (
                                                 <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">Lunas</span>
                                             )
-                                        ) : rec.status === 'Berjalan' ? (
-                                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200">Di-Hold</span>
-                                        ) : (
+                                        ) : rec.status === 'Dibatalkan' ? (
                                             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200">Batal</span>
+                                        ) : (
+                                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200">Di-Hold</span>
                                         )}
                                     </div>
 

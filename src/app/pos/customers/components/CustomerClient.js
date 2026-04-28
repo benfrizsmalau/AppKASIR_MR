@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
     Users,
     Search,
@@ -21,6 +22,7 @@ import {
 import { saveCustomer, deleteCustomer } from "../actions";
 
 export default function CustomerClient({ initialCustomers, error }) {
+    const router = useRouter();
     const [customers, setCustomers] = useState(initialCustomers);
     const [searchTerm, setSearchTerm] = useState("");
     const [filterType, setFilterType] = useState("Semua");
@@ -72,7 +74,7 @@ export default function CustomerClient({ initialCustomers, error }) {
             // Optimistic update or just refresh
             // For simplicity, we can refresh the list or wait for revalidatePath to kick in if using useTransition
             // But here we'll just reload the page for a clean refresh or manual update state
-            window.location.reload();
+            router.refresh();
         } else {
             setMsg({ text: res.message, type: "error" });
             setIsLoading(false);
@@ -85,7 +87,7 @@ export default function CustomerClient({ initialCustomers, error }) {
         setIsLoading(true);
         const res = await deleteCustomer(id);
         if (res.success) {
-            window.location.reload();
+            router.refresh();
         } else {
             alert(res.message);
             setIsLoading(false);

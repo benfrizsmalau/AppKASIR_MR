@@ -35,8 +35,21 @@ export async function loginWithPin(userId, pin) {
         });
 
         // Simpan context tenant & outlet untuk akses cepat POS
-        cookieStore.set('active_tenant_id', user.tenant_id, { httpOnly: false, path: '/' });
-        cookieStore.set('active_outlet_id', user.outlet_id, { httpOnly: false, path: '/' });
+        // maxAge lebih panjang dari session agar terminal POS tetap terasosiasi ke toko ini
+        cookieStore.set('active_tenant_id', user.tenant_id, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 60 * 60 * 24 * 30, // 30 hari — identitas terminal
+        });
+        cookieStore.set('active_outlet_id', user.outlet_id, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 60 * 60 * 24 * 30, // 30 hari — identitas terminal
+        });
 
         return { success: true, user: { id: user.id, name: user.full_name, role: user.role } };
 

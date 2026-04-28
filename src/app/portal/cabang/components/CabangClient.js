@@ -17,6 +17,8 @@ export default function CabangClient({ initialOutlets, subscriptionPlan }) {
     const [editingOutlet, setEditingOutlet] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [expandedOutlet, setExpandedOutlet] = useState(null);
+    const [msg, setMsg] = useState(null); // {type:'success'|'error', text}
+    const [confirmToggleId, setConfirmToggleId] = useState(null);
 
     const limits = {
         'Starter': 1,
@@ -50,21 +52,26 @@ export default function CabangClient({ initialOutlets, subscriptionPlan }) {
     const onSave = async (e) => {
         e.preventDefault();
         setIsLoading(true);
+        setMsg(null);
         const res = await saveOutlet(editingOutlet);
+        setIsLoading(false);
         if (res.success) {
             setIsModalOpen(false);
             router.refresh();
-            setIsLoading(false);
         } else {
-            alert(res.message);
-            setIsLoading(false);
+            setMsg({ type: 'error', text: res.message });
         }
     };
 
     const onToggleStatus = async (id, currentStatus) => {
-        if (!confirm('Apakah Anda yakin ingin ' + (currentStatus ? 'Menonaktifkan' : 'Mengaktifkan') + ' cabang ini?')) return;
+        setConfirmToggleId(null);
         const res = await toggleOutletStatus(id, currentStatus);
-        if (res.success) router.refresh();
+        if (res.success) {
+            router.refresh();
+        } else {
+            setMsg({ type: 'error', text: res.message || 'Gagal mengubah status cabang.' });
+            setTimeout(() => setMsg(null), 4000);
+        }
     };
 
     return (
@@ -92,6 +99,13 @@ export default function CabangClient({ initialOutlets, subscriptionPlan }) {
                     </button>
                 </div>
             </header>
+
+            {msg && (
+                <div className={`max-w-6xl mx-auto px-5 py-3 rounded-2xl font-bold text-sm flex items-center justify-between ${msg.type === 'error' ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-green-50 border border-green-200 text-green-700'}`}>
+                    <span>{msg.text}</span>
+                    <button onClick={() => setMsg(null)} className="ml-4 opacity-60 hover:opacity-100">✕</button>
+                </div>
+            )}
 
             <div className="space-y-4 max-w-6xl mx-auto">
                 {initialOutlets.map((outlet) => {
@@ -206,12 +220,20 @@ export default function CabangClient({ initialOutlets, subscriptionPlan }) {
                                                 >
                                                     <Edit3 className="w-4 h-4" /> Edit Detail
                                                 </button>
-                                                <button 
-                                                    onClick={() => onToggleStatus(outlet.id, outlet.is_active)}
-                                                    className={`w-12 h-12 flex items-center justify-center rounded-xl border transition-all active:scale-95 ${outlet.is_active ? 'border-red-100 text-red-400 hover:bg-red-50' : 'border-green-100 text-green-400 hover:bg-green-50'}`}
-                                                >
-                                                    <Power className="w-5 h-5" />
-                                                </button>
+                                                {confirmToggleId === outlet.id ? (
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-xs font-bold text-gray-600">Yakin?</span>
+                                                        <button onClick={() => onToggleStatus(outlet.id, outlet.is_active)} className="px-2 py-1 bg-red-500 text-white rounded-lg text-xs font-black hover:bg-red-600">Ya</button>
+                                                        <button onClick={() => setConfirmToggleId(null)} className="px-2 py-1 bg-gray-200 text-gray-700 rounded-lg text-xs font-black hover:bg-gray-300">Batal</button>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => setConfirmToggleId(outlet.id)}
+                                                        className={`w-12 h-12 flex items-center justify-center rounded-xl border transition-all active:scale-95 ${outlet.is_active ? 'border-red-100 text-red-400 hover:bg-red-50' : 'border-green-100 text-green-400 hover:bg-green-50'}`}
+                                                    >
+                                                        <Power className="w-5 h-5" />
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -255,6 +277,9 @@ export default function CabangClient({ initialOutlets, subscriptionPlan }) {
                         </header>
 
                         <form onSubmit={onSave} className="flex-1 overflow-y-auto px-10 py-8 space-y-10">
+                            {msg?.type === 'error' && (
+                                <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-2xl text-red-700 font-bold text-sm">{msg.text}</div>
+                            )}
                             {/* Identitas */}
                             <section className="space-y-6">
                                 <div className="flex items-center gap-3">

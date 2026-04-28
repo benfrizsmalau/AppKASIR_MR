@@ -33,8 +33,8 @@ export async function getOutletSettings() {
 
 export async function updateOutletSettings(formData) {
     try {
-        const { outlet_id } = await getActiveContext();
-        if (!outlet_id) return { success: false, message: 'Invalid session' };
+        const { tenant_id, outlet_id } = await getActiveContext();
+        if (!tenant_id || !outlet_id) return { success: false, message: 'Invalid session' };
 
         const updateData = {
             name: formData.name,
@@ -50,10 +50,12 @@ export async function updateOutletSettings(formData) {
             updated_at: new Date().toISOString()
         };
 
+        // Filter dengan tenant_id sekaligus untuk mencegah cross-tenant write
         const { error } = await dbAdmin
             .from('outlets')
             .update(updateData)
-            .eq('id', outlet_id);
+            .eq('id', outlet_id)
+            .eq('tenant_id', tenant_id);
 
         if (error) throw error;
 

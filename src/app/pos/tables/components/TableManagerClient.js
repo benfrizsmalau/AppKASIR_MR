@@ -37,6 +37,8 @@ export default function TableManagerClient({ initialTables }) {
     const [mergeSelected, setMergeSelected] = useState([]); // [tableId, ...]
     const [actionLoading, setActionLoading] = useState(false);
     const [actionMsg, setActionMsg] = useState(null); // {type:'success'|'error', text}
+    const [formError, setFormError] = useState(null);
+    const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
     const exitInteractionMode = () => {
         setInteractionMode(null);
@@ -130,27 +132,27 @@ export default function TableManagerClient({ initialTables }) {
     const onSave = async (e) => {
         e.preventDefault();
         setIsLoading(true);
+        setFormError(null);
         const res = await saveTable(editingTable);
+        setIsLoading(false);
         if (res.success) {
             setIsTableModalOpen(false);
-            router.refresh(); // Sync data
-            setIsLoading(false);
+            router.refresh();
         } else {
-            alert(res.message);
-            setIsLoading(false);
+            setFormError(res.message);
         }
     };
 
     const onDelete = async (id) => {
-        if (!confirm("Hapus meja ini?")) return;
+        setConfirmDeleteId(null);
         setIsLoading(true);
         const res = await deleteTable(id);
+        setIsLoading(false);
         if (res.success) {
             router.refresh();
-            setIsLoading(false);
         } else {
-            alert("Gagal menghapus meja.");
-            setIsLoading(false);
+            setFormError(res.message || 'Gagal menghapus meja.');
+            setTimeout(() => setFormError(null), 4000);
         }
     };
 
@@ -181,15 +183,16 @@ export default function TableManagerClient({ initialTables }) {
 
     const savePositions = async () => {
         setIsLoading(true);
+        setFormError(null);
         const positions = tables.map(t => ({ id: t.id, pos_x: t.pos_x, pos_y: t.pos_y }));
         const res = await updateTablePositions(positions);
+        setIsLoading(false);
         if (res.success) {
             setHasUnsavedPositions(false);
-            setIsLoading(false);
             router.refresh();
         } else {
-            alert("Gagal simpan posisi.");
-            setIsLoading(false);
+            setFormError('Gagal menyimpan posisi meja.');
+            setTimeout(() => setFormError(null), 4000);
         }
     };
 
@@ -263,6 +266,14 @@ export default function TableManagerClient({ initialTables }) {
                     )}
                 </div>
             </header>
+
+            {/* Error Banner */}
+            {formError && (
+                <div className="mx-8 mt-4 px-5 py-3 bg-red-50 border border-red-200 rounded-2xl text-red-700 font-bold text-sm flex items-center justify-between">
+                    <span>{formError}</span>
+                    <button onClick={() => setFormError(null)} className="ml-4 text-red-400 hover:text-red-600">✕</button>
+                </div>
+            )}
 
             {/* Area Filter */}
             <div className="bg-white px-8 py-3 border-b flex items-center gap-4 overflow-x-auto shrink-0 no-scrollbar">
@@ -421,9 +432,17 @@ export default function TableManagerClient({ initialTables }) {
                                                     <button onClick={() => handleOpenModal(table)} className="p-2 hover:bg-primary-50 rounded-xl text-primary-600 transition-colors">
                                                         <Maximize className="w-5 h-5" />
                                                     </button>
-                                                    <button onClick={() => onDelete(table.id)} className="p-2 hover:bg-red-50 rounded-xl text-red-500 transition-colors">
-                                                        <Trash2 className="w-5 h-5" />
-                                                    </button>
+                                                    {confirmDeleteId === table.id ? (
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="text-xs font-bold text-red-600 mr-1">Hapus?</span>
+                                                            <button onClick={() => onDelete(table.id)} className="px-2 py-1 bg-red-500 text-white rounded-lg text-xs font-black hover:bg-red-600">Ya</button>
+                                                            <button onClick={() => setConfirmDeleteId(null)} className="px-2 py-1 bg-gray-200 text-gray-700 rounded-lg text-xs font-black hover:bg-gray-300">Batal</button>
+                                                        </div>
+                                                    ) : (
+                                                        <button onClick={() => setConfirmDeleteId(table.id)} className="p-2 hover:bg-red-50 rounded-xl text-red-500 transition-colors">
+                                                            <Trash2 className="w-5 h-5" />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
@@ -452,6 +471,11 @@ export default function TableManagerClient({ initialTables }) {
                         </div>
 
                         <form onSubmit={onSave} className="space-y-6">
+                            {formError && (
+                                <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-2xl text-red-700 font-bold text-sm">
+                                    {formError}
+                                </div>
+                            )}
                             <div>
                                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Nomor Meja *</label>
                                 <input required type="text" value={editingTable.table_number} onChange={e => setEditingTable({ ...editingTable, table_number: e.target.value })} className="w-full bg-gray-50 rounded-2xl p-4 border-2 border-transparent focus:border-accent-400 focus:bg-white outline-none font-bold text-xl transition-all" placeholder="01" />

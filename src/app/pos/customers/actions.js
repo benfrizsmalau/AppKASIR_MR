@@ -75,6 +75,21 @@ export async function deleteCustomer(id) {
         const { tenant_id } = await getActiveContext();
         if (!tenant_id) return { success: false, message: 'Invalid session' };
 
+        // Cek apakah pelanggan masih punya hutang aktif
+        const { data: cust } = await dbAdmin
+            .from('customers')
+            .select('current_debt, name')
+            .eq('id', id)
+            .eq('tenant_id', tenant_id)
+            .single();
+
+        if (cust && Number(cust.current_debt) > 0) {
+            return {
+                success: false,
+                message: `${cust.name} masih memiliki piutang Rp ${Number(cust.current_debt).toLocaleString('id-ID')}. Lunasi hutang terlebih dahulu sebelum menghapus.`
+            };
+        }
+
         const { error } = await dbAdmin
             .from('customers')
             .delete()

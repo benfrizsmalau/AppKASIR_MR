@@ -213,21 +213,32 @@ export default function InventoryClient({ initialIngredients, initialRecipes, me
     const [recipeModal, setRecipeModal] = useState(null);
 
     const lowStockItems = ingredients.filter(i => Number(i.current_stock) <= Number(i.min_stock) && Number(i.min_stock) > 0);
+    const [deleteError, setDeleteError] = useState(null);
+    const [confirmDeleteIngredient, setConfirmDeleteIngredient] = useState(null);
+    const [confirmDeleteRecipe, setConfirmDeleteRecipe] = useState(null);
 
     const handleRefresh = () => router.refresh();
 
     const handleDeleteIngredient = async (id) => {
-        if (!confirm('Hapus bahan baku ini? Resep yang terkait juga akan terpengaruh.')) return;
+        setConfirmDeleteIngredient(null);
+        setDeleteError(null);
         const res = await deleteIngredient(id);
         if (res.success) handleRefresh();
-        else alert(res.message);
+        else {
+            setDeleteError(res.message);
+            setTimeout(() => setDeleteError(null), 5000);
+        }
     };
 
     const handleDeleteRecipe = async (id) => {
-        if (!confirm('Hapus resep ini?')) return;
+        setConfirmDeleteRecipe(null);
+        setDeleteError(null);
         const res = await deleteRecipe(id);
         if (res.success) handleRefresh();
-        else alert(res.message);
+        else {
+            setDeleteError(res.message);
+            setTimeout(() => setDeleteError(null), 5000);
+        }
     };
 
     return (
@@ -256,6 +267,14 @@ export default function InventoryClient({ initialIngredients, initialRecipes, me
                     {activeTab === 'bahan' ? 'Tambah Bahan' : 'Tambah Resep'}
                 </button>
             </header>
+
+            {/* Delete Error Banner */}
+            {deleteError && (
+                <div className="mx-8 mt-4 px-5 py-3 bg-red-50 border border-red-200 rounded-2xl text-red-700 font-bold text-sm flex items-center justify-between">
+                    <span>{deleteError}</span>
+                    <button onClick={() => setDeleteError(null)} className="ml-4 opacity-60 hover:opacity-100">✕</button>
+                </div>
+            )}
 
             {/* Low Stock Alert Banner */}
             {lowStockItems.length > 0 && (
@@ -326,10 +345,18 @@ export default function InventoryClient({ initialIngredients, initialRecipes, me
                                                         className="p-2 hover:bg-primary-50 rounded-xl text-primary-600 transition-colors">
                                                         <Edit className="w-4 h-4" />
                                                     </button>
-                                                    <button onClick={() => handleDeleteIngredient(ing.id)}
-                                                        className="p-2 hover:bg-red-50 rounded-xl text-red-500 transition-colors">
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
+                                                    {confirmDeleteIngredient === ing.id ? (
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="text-xs font-bold text-red-600">Hapus?</span>
+                                                            <button onClick={() => handleDeleteIngredient(ing.id)} className="px-2 py-1 bg-red-500 text-white rounded-lg text-xs font-black hover:bg-red-600">Ya</button>
+                                                            <button onClick={() => setConfirmDeleteIngredient(null)} className="px-2 py-1 bg-gray-200 text-gray-700 rounded-lg text-xs font-black">Batal</button>
+                                                        </div>
+                                                    ) : (
+                                                        <button onClick={() => setConfirmDeleteIngredient(ing.id)}
+                                                            className="p-2 hover:bg-red-50 rounded-xl text-red-500 transition-colors">
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
@@ -375,10 +402,18 @@ export default function InventoryClient({ initialIngredients, initialRecipes, me
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button onClick={() => handleDeleteRecipe(rec.id)}
-                                                        className="p-2 hover:bg-red-50 rounded-xl text-red-500">
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
+                                                    {confirmDeleteRecipe === rec.id ? (
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="text-xs font-bold text-red-600">Hapus?</span>
+                                                            <button onClick={() => handleDeleteRecipe(rec.id)} className="px-2 py-1 bg-red-500 text-white rounded-lg text-xs font-black hover:bg-red-600">Ya</button>
+                                                            <button onClick={() => setConfirmDeleteRecipe(null)} className="px-2 py-1 bg-gray-200 text-gray-700 rounded-lg text-xs font-black">Batal</button>
+                                                        </div>
+                                                    ) : (
+                                                        <button onClick={() => setConfirmDeleteRecipe(rec.id)}
+                                                            className="p-2 hover:bg-red-50 rounded-xl text-red-500">
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

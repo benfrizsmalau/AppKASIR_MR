@@ -21,7 +21,32 @@ export async function processPayment({ orderId, cartData, paymentMethod, mixedPa
         let finalOrderId = orderId;
         const receiptNumber = `RCP-${Date.now().toString().slice(-6)}`;
 
-        // 1. Jika pembayaran langsung (bukan dari Hold Bill) → Buat Order Baru
+        // ── FASE VALIDASI (sebelum ada perubahan DB apapun) ───────────────────
+
+        // Validasi credit limit hutang sebelum mulai
+        if (paymentMethod === 'Hutang' && customerId) {
+            const { data: cust } = await dbAdmin
+                .from('customers')
+                .select('current_debt, credit_limit, name')
+                .eq('id', customerId)
+                .eq('tenant_id', tenant_id)
+                .single();
+
+            if (!cust) return { success: false, message: 'Data pelanggan tidak ditemukan.' };
+
+            const creditLimit = Number(cust.credit_limit || 0);
+            const currentDebt = Number(cust.current_debt || 0);
+            if (creditLimit > 0 && (currentDebt + grandTotal) > creditLimit) {
+                return {
+                    success: false,
+                    message: `Transaksi ditolak. Batas kredit ${cust.name} adalah Rp ${creditLimit.toLocaleString('id-ID')}, sisa limit Rp ${(creditLimit - currentDebt).toLocaleString('id-ID')}.`
+                };
+            }
+        }
+
+        // ── FASE 1: ORDER & ITEMS (paling kritis — harus berhasil) ───────────
+
+        // 1a. Jika pembayaran langsung (bukan dari Hold Bill) → Buat Order Baru
         if (!finalOrderId) {
             const orderNumber = `ORD-${Date.now().toString().slice(-6)}`;
             const { data: order, error: orderErr } = await dbAdmin
@@ -45,7 +70,6 @@ export async function processPayment({ orderId, cartData, paymentMethod, mixedPa
             if (orderErr) throw orderErr;
             finalOrderId = order.id;
 
-            // Insert items
             const orderItemsPayload = cartData.map(item => ({
                 tenant_id, order_id: finalOrderId, menu_item_id: item.id,
                 quantity: item.qty, unit_price: item.price, subtotal: item.price * item.qty,
@@ -57,101 +81,39 @@ export async function processPayment({ orderId, cartData, paymentMethod, mixedPa
             if (itemsErr) throw itemsErr;
         }
 
-        // 2. Jika dari Hold Bill, Update status order jadi Selesai
+        // 1b. Jika dari Hold Bill → Update status + bebaskan meja dulu
         if (orderId) {
-            const updatePayload = {
-                status: 'Selesai',
-                customer_id: customerId || null,
-                customer_name: customerName || null,
-                is_credit: paymentMethod === 'Hutang'
-            };
-            const { error: updErr } = await dbAdmin.from('orders').update(updatePayload).eq('id', finalOrderId);
+            const { data: existingOrder } = await dbAdmin
+                .from('orders')
+                .select('table_id, order_type')
+                .eq('id', finalOrderId)
+                .eq('tenant_id', tenant_id)
+                .single();
+
+            const { error: updErr } = await dbAdmin
+                .from('orders')
+                .update({
+                    status: 'Selesai',
+                    customer_id: customerId || null,
+                    customer_name: customerName || null,
+                    is_credit: paymentMethod === 'Hutang'
+                })
+                .eq('id', finalOrderId)
+                .eq('tenant_id', tenant_id);
             if (updErr) throw updErr;
 
-            // Bebaskan meja jika order tersebut tadinya nyangkut di meja
-            const { data: existingOrder } = await dbAdmin.from('orders').select('table_id, order_type').eq('id', finalOrderId).single();
-            if (existingOrder && existingOrder.table_id && existingOrder.order_type === 'Dine-In') {
+            if (existingOrder?.table_id && existingOrder?.order_type === 'Dine-In') {
                 await dbAdmin.from('tables').update({ status: 'Kosong' }).eq('id', existingOrder.table_id);
             }
         }
 
-        // 3. Update Hutang Pelanggan jika menggunakan metode 'Hutang'
-        if (paymentMethod === 'Hutang' && customerId) {
-            // Ambil data pelanggan saat ini
-            const { data: cust } = await dbAdmin.from('customers').select('current_debt').eq('id', customerId).single();
-            const newDebt = Number(cust?.current_debt || 0) + grandTotal;
+        // ── FASE 2: PAYMENT RECORD (kritis — harus berhasil) ─────────────────
 
-            await dbAdmin.from('customers').update({ current_debt: newDebt }).eq('id', customerId);
-        }
-
-        // 4. Update Stok Otomatis (Jika Track Stock diaktifkan)
-        for (const item of cartData) {
-            // Ambil info track_stock item
-            const { data: menuInfo } = await dbAdmin.from('menu_items')
-                .select('track_stock, current_stock, name')
-                .eq('id', item.id)
-                .single();
-
-            if (menuInfo && menuInfo.track_stock) {
-                const newStock = Number(menuInfo.current_stock || 0) - Number(item.qty);
-
-                // Update Stok
-                await dbAdmin.from('menu_items').update({ current_stock: newStock }).eq('id', item.id);
-
-                // Log Inventory
-                await dbAdmin.from('inventory_logs').insert({
-                    tenant_id,
-                    outlet_id,
-                    menu_item_id: item.id,
-                    type: 'Keluar',
-                    quantity: Number(item.qty),
-                    notes: `Penjualan (Order #${receiptNumber})`,
-                    user_id: cashier_id
-                });
-            }
-        }
-
-        // 4b. Auto-deduct Ingredients via Recipes
-        try {
-            for (const item of cartData) {
-                const { data: recipeItems } = await dbAdmin
-                    .from('recipes')
-                    .select('ingredient_id, quantity_used')
-                    .eq('menu_item_id', item.id)
-                    .eq('tenant_id', tenant_id);
-
-                if (recipeItems && recipeItems.length > 0) {
-                    for (const recipe of recipeItems) {
-                        const totalUsed = Number(recipe.quantity_used) * Number(item.qty);
-                        // Fetch current stock
-                        const { data: ing } = await dbAdmin.from('ingredients').select('current_stock').eq('id', recipe.ingredient_id).single();
-                        if (ing) {
-                            const newStock = Math.max(0, Number(ing.current_stock) - totalUsed);
-                            await dbAdmin.from('ingredients').update({ current_stock: newStock }).eq('id', recipe.ingredient_id);
-                            // Log movement
-                            await dbAdmin.from('stock_movements').insert([{
-                                tenant_id, outlet_id,
-                                ingredient_id: recipe.ingredient_id,
-                                movement_type: 'Keluar',
-                                quantity: totalUsed,
-                                notes: `Penjualan order ${receiptNumber}`,
-                            }]);
-                        }
-                    }
-                }
-            }
-        } catch (recipeErr) {
-            console.error('Recipe auto-deduct error (non-fatal):', recipeErr);
-        }
-
-        // 5. Catat Transaksi Pembayaran
         if (paymentMethod === 'Campuran' && mixedPayments?.length > 0) {
-            // Insert satu record per metode pembayaran
             const multiPayloads = mixedPayments
                 .filter(p => parseFloat(p.amount) > 0)
                 .map(p => ({
-                    tenant_id, outlet_id, order_id: finalOrderId,
-                    cashier_id,
+                    tenant_id, outlet_id, order_id: finalOrderId, cashier_id,
                     payment_method: p.method,
                     amount_paid: parseFloat(p.amount),
                     amount_change: 0,
@@ -162,8 +124,7 @@ export async function processPayment({ orderId, cartData, paymentMethod, mixedPa
             if (multiPayErr) throw multiPayErr;
         } else {
             const paymentPayload = {
-                tenant_id, outlet_id, order_id: finalOrderId,
-                cashier_id,
+                tenant_id, outlet_id, order_id: finalOrderId, cashier_id,
                 payment_method: paymentMethod,
                 amount_paid: paymentMethod === 'Hutang' ? 0 : (paymentMethod === 'Tunai' ? cashTendered : grandTotal),
                 amount_change: paymentMethod === 'Tunai' ? changeAmount : 0,
@@ -172,6 +133,91 @@ export async function processPayment({ orderId, cartData, paymentMethod, mixedPa
             };
             const { error: payErr } = await dbAdmin.from('payments').insert(paymentPayload);
             if (payErr) throw payErr;
+        }
+
+        // ── FASE 3: HUTANG (kritis jika metode Hutang) ───────────────────────
+
+        if (paymentMethod === 'Hutang' && customerId) {
+            const { data: cust } = await dbAdmin
+                .from('customers')
+                .select('current_debt')
+                .eq('id', customerId)
+                .eq('tenant_id', tenant_id)
+                .single();
+            const newDebt = Number(cust?.current_debt || 0) + grandTotal;
+            await dbAdmin.from('customers')
+                .update({ current_debt: newDebt })
+                .eq('id', customerId)
+                .eq('tenant_id', tenant_id);
+        }
+
+        // ── FASE 4: STOK MENU (non-kritis, error tidak batalkan pembayaran) ──
+
+        try {
+            // Kumpulkan item yang pakai track_stock DAN yang punya resep
+            // untuk menentukan mana yang perlu deduksi mana
+            const menuIds = cartData.map(i => i.id);
+            const { data: menuInfos } = await dbAdmin
+                .from('menu_items')
+                .select('id, track_stock, current_stock')
+                .in('id', menuIds)
+                .eq('tenant_id', tenant_id);
+
+            const { data: allRecipes } = await dbAdmin
+                .from('recipes')
+                .select('menu_item_id, ingredient_id, quantity_used')
+                .in('menu_item_id', menuIds)
+                .eq('tenant_id', tenant_id);
+
+            // Set menu_item_id yang punya resep — hindari double-deduct
+            const itemsWithRecipes = new Set((allRecipes || []).map(r => r.menu_item_id));
+
+            for (const item of cartData) {
+                const menuInfo = (menuInfos || []).find(m => m.id === item.id);
+
+                // Deduct menu stock hanya jika track_stock=true DAN tidak punya resep
+                // (Jika ada resep, deduksi dilakukan via ingredients di bawah)
+                if (menuInfo?.track_stock && !itemsWithRecipes.has(item.id)) {
+                    const newStock = Math.max(0, Number(menuInfo.current_stock || 0) - Number(item.qty));
+                    await dbAdmin.from('menu_items').update({ current_stock: newStock }).eq('id', item.id).eq('tenant_id', tenant_id);
+                    await dbAdmin.from('inventory_logs').insert({
+                        tenant_id, outlet_id, menu_item_id: item.id,
+                        type: 'Pemakaian',
+                        quantity: Number(item.qty),
+                        notes: `Penjualan (${receiptNumber})`,
+                        user_id: cashier_id
+                    });
+                }
+            }
+
+            // Deduct ingredients via recipes
+            for (const recipe of (allRecipes || [])) {
+                const cartItem = cartData.find(i => i.id === recipe.menu_item_id);
+                if (!cartItem) continue;
+
+                const totalUsed = Number(recipe.quantity_used) * Number(cartItem.qty);
+                const { data: ing } = await dbAdmin
+                    .from('ingredients')
+                    .select('current_stock')
+                    .eq('id', recipe.ingredient_id)
+                    .eq('tenant_id', tenant_id)
+                    .single();
+
+                if (ing) {
+                    const newStock = Math.max(0, Number(ing.current_stock) - totalUsed);
+                    await dbAdmin.from('ingredients').update({ current_stock: newStock }).eq('id', recipe.ingredient_id).eq('tenant_id', tenant_id);
+                    await dbAdmin.from('stock_movements').insert([{
+                        tenant_id, outlet_id,
+                        ingredient_id: recipe.ingredient_id,
+                        movement_type: 'Pemakaian',
+                        quantity: totalUsed,
+                        notes: `Penjualan (${receiptNumber})`,
+                    }]);
+                }
+            }
+        } catch (stockErr) {
+            // Stok error tidak membatalkan transaksi yang sudah tercatat
+            console.error('Stock deduction error (non-fatal, payment already recorded):', stockErr);
         }
 
         return { success: true, receiptNumber };

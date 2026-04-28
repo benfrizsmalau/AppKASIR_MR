@@ -1,0 +1,8 @@
+{
+  "name": "AppKasir POS",
+  "short_name": "AppKasir",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1a1a2e"
+}

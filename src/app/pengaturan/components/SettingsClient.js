@@ -34,10 +34,7 @@ export default function SettingsClient({ initialSettings }) {
         const res = await updateOutletSettings(settings);
         setIsLoading(false);
         setMessage({ type: res.success ? 'success' : 'error', text: res.message });
-
-        if (res.success) {
-            setTimeout(() => setMessage(null), 3000);
-        }
+        setTimeout(() => setMessage(null), 4000);
     };
 
     const { results: completenessItems, percent, isComplete } = getCompleteness(settings);

@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { ClipboardList, Store, Clock, Utensils, MapPin, Search, X, AlertTriangle, Loader2 } from "lucide-react";
+import { ClipboardList, Store, Clock, Utensils, MapPin, Search, X, AlertTriangle, Loader2, Plus, PlusCircle } from "lucide-react";
 import PaymentModal from "../components/modals/PaymentModal";
+import ReceiptPrintout from "../components/ReceiptPrintout";
 import { cancelOrderItem, cancelOrder } from "../actions/orders";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 const CANCEL_REASONS = ['Salah Input', 'Permintaan Customer', 'Tidak Tersedia', 'Lainnya'];
 
@@ -87,7 +89,7 @@ function CancelModal({ mode, target, onClose, onConfirm }) {
     );
 }
 
-export default function ActiveOrdersClient({ initialOrders, error }) {
+export default function ActiveOrdersClient({ initialOrders, error, outlet }) {
     const router = useRouter();
     const [orders, setOrders] = useState(initialOrders || []);
     const [searchTerm, setSearchTerm] = useState("");
@@ -95,6 +97,15 @@ export default function ActiveOrdersClient({ initialOrders, error }) {
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [cancelTarget, setCancelTarget] = useState(null);
     const [actionMsg, setActionMsg] = useState(null);
+    const [printData, setPrintData] = useState(null);
+
+    // Print trigger
+    useEffect(() => {
+        if (printData) {
+            const timer = setTimeout(() => window.print(), 100);
+            return () => clearTimeout(timer);
+        }
+    }, [printData]);
 
     const getElapsedTime = (createdStr) => {
         const ms = new Date() - new Date(createdStr);
@@ -121,9 +132,15 @@ export default function ActiveOrdersClient({ initialOrders, error }) {
             id: order.id,
             number: order.order_number,
             cart: simulatedCart,
-            subtotal: Number(order.subtotal),
-            taxAmount: Number(order.pbjt_total),
-            grandTotal: Number(order.grand_total)
+            selectedCustomer: order.customers, // Pass the joined customer object
+            billing: {
+                itemsSubtotal: Number(order.subtotal),
+                totalDiscountAmount: Number(order.discount_total || 0),
+                serviceChargeAmount: Number(order.service_charge_total || 0),
+                dpp: Number(order.dpp_total || order.subtotal),
+                pbjtAmount: Number(order.pbjt_total),
+                grandTotal: Number(order.grand_total)
+            }
         });
         setPaymentModalOpen(true);
     };
@@ -157,7 +174,7 @@ export default function ActiveOrdersClient({ initialOrders, error }) {
         setTimeout(() => { setActionMsg(null); router.refresh(); }, 3000);
     };
 
-    const pbjtRateValue = selectedOrder && selectedOrder.subtotal > 0 ? selectedOrder.taxAmount / selectedOrder.subtotal : 0.1;
+    const pbjtRateValue = selectedOrder && selectedOrder.billing.itemsSubtotal > 0 ? selectedOrder.billing.pbjtAmount / selectedOrder.billing.itemsSubtotal : 0.1;
 
     return (
         <div className="flex w-full h-full bg-gray-50 overflow-hidden font-sans text-gray-900">
@@ -271,6 +288,14 @@ export default function ActiveOrdersClient({ initialOrders, error }) {
 
                                     {/* Card Footer */}
                                     <div className="p-5 border-t border-gray-100 bg-white grid grid-cols-2 items-center gap-4 shrink-0">
+                                        <div className="col-span-2 flex gap-2 mb-2 border-b border-gray-50 pb-3">
+                                            <button
+                                                onClick={() => router.push(`/pos?orderId=${order.id}&table=${order.tables?.table_number || ''}`)}
+                                                className="flex-1 bg-primary-50 text-primary-700 hover:bg-primary-100 font-bold py-2.5 rounded-xl transition-all border border-primary-100 flex items-center justify-center gap-2"
+                                            >
+                                                <Plus className="w-4 h-4" /> Tambah Menu
+                                            </button>
+                                        </div>
                                         <div>
                                             <p className="text-xs text-gray-500 font-semibold mb-0.5">Total Tagihan</p>
                                             <p className="font-black text-xl text-primary-900">Rp {Number(order.grand_total).toLocaleString('id-ID')}</p>
@@ -295,14 +320,40 @@ export default function ActiveOrdersClient({ initialOrders, error }) {
                         isOpen={paymentModalOpen}
                         onClose={() => setPaymentModalOpen(false)}
                         cart={selectedOrder.cart}
-                        outletData={{ pbjtActive: selectedOrder.taxAmount > 0, pbjtRate: pbjtRateValue }}
-                        onPaySuccess={(receipt, change) => {
+                        orderId={selectedOrder.id}
+                        selectedCustomer={selectedOrder.selectedCustomer}
+                        outletData={{
+                            ...(outlet || {}),
+                            pbjtActive: selectedOrder.billing.pbjtAmount > 0,
+                            pbjtRate: pbjtRateValue
+                        }}
+                        billing={selectedOrder.billing}
+                        onPaySuccess={(receiptNum, changeAmt, method, cash) => {
+                            const pData = {
+                                type: 'Receipt',
+                                outlet: outlet,
+                                receiptNumber: receiptNum,
+                                items: [...selectedOrder.cart],
+                                itemsSubtotal: selectedOrder.billing.itemsSubtotal,
+                                totalDiscount: selectedOrder.billing.totalDiscountAmount,
+                                serviceCharge: selectedOrder.billing.serviceChargeAmount,
+                                dpp: selectedOrder.billing.dpp,
+                                taxAmount: selectedOrder.billing.pbjtAmount,
+                                grandTotal: selectedOrder.billing.grandTotal,
+                                paymentMethod: method,
+                                cashTendered: cash,
+                                changeAmount: changeAmt,
+                                cashier: 'Kasir'
+                            };
                             setOrders(prev => prev.filter(o => o.id !== selectedOrder.id));
                             setPaymentModalOpen(false);
-                            alert(`LUNAS! Struk: ${receipt}. Kembalian: Rp ${change.toLocaleString('id-ID')}`);
+                            setPrintData(pData);
                         }}
                     />
                 )}
+
+                {/* Receipt Hidden Print */}
+                <ReceiptPrintout data={printData} />
 
                 {/* Cancel Modal */}
                 {cancelTarget && (

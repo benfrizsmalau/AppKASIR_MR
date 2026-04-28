@@ -19,7 +19,7 @@ export async function getStaffList() {
 
         const { data: staff, error } = await dbAdmin
             .from('staff_users')
-            .select('id, full_name, pin_hash, role, is_active, created_at')
+            .select('id, full_name, role, is_active, created_at')
             .eq('tenant_id', tenant_id)
             .order('full_name', { ascending: true });
 
@@ -42,18 +42,26 @@ export async function getStaffList() {
     }
 }
 
+const ALLOWED_ROLES = ['Kasir', 'Pramusaji', 'Supervisor', 'Manajer'];
+
 export async function saveStaff(formData) {
     try {
         const { tenant_id } = await getActiveContext();
         if (!tenant_id) return { success: false, message: 'Invalid session' };
 
         const id = formData.id;
-        
+        const requestedRole = formData.access_role || 'Kasir';
+
+        // Whitelist role — Owner/Admin tidak boleh dibuat dari sini
+        if (!ALLOWED_ROLES.includes(requestedRole)) {
+            return { success: false, message: 'Role tidak valid.' };
+        }
+
         // Data dasar
         const data = {
             tenant_id,
             full_name: formData.name,
-            role: formData.access_role || 'Kasir',
+            role: requestedRole,
             is_active: formData.is_active !== undefined ? formData.is_active : true,
             updated_at: new Date().toISOString()
         };
@@ -84,8 +92,27 @@ export async function saveStaff(formData) {
 
 export async function deleteStaff(id) {
     try {
-        const { tenant_id } = await getActiveContext();
+        const cookieStore = await cookies();
+        const tenant_id = cookieStore.get('active_tenant_id')?.value;
+        const current_user_id = cookieStore.get('session_user_id')?.value;
         if (!tenant_id) return { success: false, message: 'Invalid session' };
+
+        // Cegah hapus akun sendiri
+        if (id === current_user_id) {
+            return { success: false, message: 'Anda tidak dapat menghapus akun Anda sendiri.' };
+        }
+
+        // Cek apakah target adalah Owner/Admin
+        const { data: target } = await dbAdmin
+            .from('staff_users')
+            .select('role')
+            .eq('id', id)
+            .eq('tenant_id', tenant_id)
+            .single();
+
+        if (target?.role === 'Owner' || target?.role === 'Admin') {
+            return { success: false, message: 'Akun Owner/Admin tidak dapat dihapus dari menu ini.' };
+        }
 
         const { error } = await dbAdmin
             .from('staff_users')

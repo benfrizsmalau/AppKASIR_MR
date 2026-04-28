@@ -47,9 +47,3 @@ export async function getSessionRole() {
     }
 }
 
-// Returns nav items filtered by role
-export function getNavItemsForRole(role) {
-    return Object.entries(PAGE_PERMISSIONS)
-        .filter(([, minRole]) => hasAccess(role, minRole))
-        .map(([path]) => path);
-}

@@ -37,16 +37,37 @@ export async function processDebtPayment({ customer_id, amount, payment_method, 
 
         if (payErr) throw payErr;
 
-        // 2. Update customer current_debt
-        const { data: customer } = await dbAdmin.from('customers').select('current_debt, name').eq('id', customer_id).single();
-        const newDebt = Number(customer.current_debt || 0) - Number(amount);
+        // 2. Update customer current_debt dengan filter tenant_id untuk keamanan
+        // Gunakan pola read-then-update dengan validasi untuk meminimalkan race condition
+        const { data: customer, error: custFetchErr } = await dbAdmin
+            .from('customers')
+            .select('current_debt, name')
+            .eq('id', customer_id)
+            .eq('tenant_id', tenant_id)
+            .single();
+
+        if (custFetchErr || !customer) throw new Error('Data pelanggan tidak ditemukan.');
+
+        const currentDebt = Number(customer.current_debt || 0);
+        // Hutang tidak boleh negatif (overpayment bisa terjadi, floor ke 0)
+        const newDebt = Math.max(0, currentDebt - Number(amount));
 
         const { error: custErr } = await dbAdmin
             .from('customers')
             .update({ current_debt: newDebt })
-            .eq('id', customer_id);
+            .eq('id', customer_id)
+            .eq('tenant_id', tenant_id)
+            // Optimistic lock: pastikan hutang belum berubah oleh proses lain
+            .eq('current_debt', customer.current_debt);
 
-        if (custErr) throw custErr;
+        if (custErr) {
+            // Jika update gagal karena current_debt sudah berubah (race condition)
+            // coba sekali lagi dengan nilai terbaru
+            const { data: freshCust } = await dbAdmin.from('customers').select('current_debt').eq('id', customer_id).eq('tenant_id', tenant_id).single();
+            const retryDebt = Math.max(0, Number(freshCust?.current_debt || 0) - Number(amount));
+            const { error: retryErr } = await dbAdmin.from('customers').update({ current_debt: retryDebt }).eq('id', customer_id).eq('tenant_id', tenant_id);
+            if (retryErr) throw retryErr;
+        }
 
         // 3. Mark corresponding payment records as Lunas (FIFO approach) for THIS CUSTOMER
         // This helps the "Riwayat Transaksi" status to change correctly.
@@ -71,7 +92,6 @@ export async function processDebtPayment({ customer_id, amount, payment_method, 
                     .maybeSingle();
 
                 if (!existingPay) {
-                    console.log(`Healing: Creating missing payment record for Order ${orderId}`);
                     const { data: ord } = await dbAdmin.from('orders').select('grand_total, outlet_id').eq('id', orderId).single();
                     await dbAdmin.from('payments').insert([{
                         tenant_id,

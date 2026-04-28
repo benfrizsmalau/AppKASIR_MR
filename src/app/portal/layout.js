@@ -13,6 +13,18 @@ export default async function PortalLayout({ children }) {
         redirect('/masuk');
     }
 
+    // Verifikasi role — hanya Owner/Admin yang boleh akses portal
+    const { data: userRow } = await dbAdmin
+        .from('staff_users')
+        .select('role')
+        .eq('id', userId)
+        .eq('tenant_id', tenantId)
+        .single();
+
+    if (!userRow || !['Owner', 'Admin'].includes(userRow.role)) {
+        redirect('/masuk');
+    }
+
     // Ambil data tenant untuk header
     const { data: tenant } = await dbAdmin
         .from('tenants')

@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Utensils, TakeoutDining, MapPin } from "lucide-react";
-import { getTablesData, holdOrderSubmit } from "../../actions/orders";
+import { X, Utensils, TakeoutDining, MapPin, PlusCircle } from "lucide-react";
+import { getTablesData, holdOrderSubmit, addItemsToOrder } from "../../actions/orders";
 
-export default function CheckoutModal({ isOpen, onClose, cart, outletData, onHoldSuccess, selectedCustomer, billing }) {
+export default function CheckoutModal({ isOpen, onClose, cart, outletData, onHoldSuccess, selectedCustomer, billing, editOrderId, editTableNumber }) {
     const { itemsSubtotal = 0, totalDiscountAmount = 0, serviceChargeAmount = 0, dpp = 0, pbjtAmount = 0, grandTotal = 0 } = billing || {};
     const [tables, setTables] = useState([]);
     const [loadingTables, setLoadingTables] = useState(false);
@@ -31,7 +31,8 @@ export default function CheckoutModal({ isOpen, onClose, cart, outletData, onHol
     const finalTotal = Math.round(grandTotal);
 
     const handleHoldOrder = async () => {
-        if (orderType === 'Dine-In' && !selectedTable) {
+        // Skip table validation if we are adding to an existing order
+        if (!editOrderId && orderType === 'Dine-In' && !selectedTable) {
             setErrorMsg('Silakan pilih meja terlebih dahulu untuk Dine-In');
             return;
         }
@@ -40,6 +41,7 @@ export default function CheckoutModal({ isOpen, onClose, cart, outletData, onHol
         setErrorMsg("");
 
         const payload = {
+            orderId: editOrderId, // Only used if calling addItemsToOrder
             cartData: cart,
             tableId: selectedTable,
             orderType,
@@ -54,7 +56,9 @@ export default function CheckoutModal({ isOpen, onClose, cart, outletData, onHol
             customerName: selectedCustomer ? selectedCustomer.name : null
         };
 
-        const result = await holdOrderSubmit(payload);
+        const result = editOrderId 
+            ? await addItemsToOrder(payload)
+            : await holdOrderSubmit(payload);
 
         if (result.success) {
             setIsSubmitting(false);
@@ -97,29 +101,40 @@ export default function CheckoutModal({ isOpen, onClose, cart, outletData, onHol
                     )}
 
                     {/* Tipe Pesanan Select */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-3">Tipe Pesanan</label>
-                        <div className="grid grid-cols-2 gap-4">
-                            <button
-                                onClick={() => { setOrderType('Dine-In'); setSelectedTable(null); }}
-                                className={`flex flex-col items-center justify-center p-4 border-2 rounded-xl transition-all ${orderType === 'Dine-In' ? 'border-primary-600 bg-primary-50 text-primary-800' : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300'}`}
-                            >
-                                <Utensils className="w-8 h-8 mb-2" />
-                                <span className="font-bold">Makan di Tempat (Dine-In)</span>
-                            </button>
-                            <button
-                                onClick={() => { setOrderType('Takeaway'); setSelectedTable(null); }}
-                                className={`flex flex-col items-center justify-center p-4 border-2 rounded-xl transition-all ${orderType === 'Takeaway' ? 'border-primary-600 bg-primary-50 text-primary-800' : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300'}`}
-                            >
-                                {/* Using MapPin as substitute for Takeout icon for now */}
-                                <MapPin className="w-8 h-8 mb-2" />
-                                <span className="font-bold">Bawa Pulang (Takeaway)</span>
-                            </button>
+                    {editOrderId ? (
+                        <div className="bg-primary-50 p-4 rounded-2xl border border-primary-100 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <PlusCircle className="w-6 h-6 text-primary-600" />
+                                <div>
+                                    <p className="text-sm font-black text-primary-900 leading-tight">Menambah ke Pesanan Aktif</p>
+                                    <p className="text-xs text-primary-600">{editTableNumber ? `Meja ${editTableNumber}` : 'Takeaway'}</p>
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    ) : (
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-3">Tipe Pesanan</label>
+                            <div className="grid grid-cols-2 gap-4">
+                                <button
+                                    onClick={() => { setOrderType('Dine-In'); setSelectedTable(null); }}
+                                    className={`flex flex-col items-center justify-center p-4 border-2 rounded-xl transition-all ${orderType === 'Dine-In' ? 'border-primary-600 bg-primary-50 text-primary-800' : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300'}`}
+                                >
+                                    <Utensils className="w-8 h-8 mb-2" />
+                                    <span className="font-bold">Makan di Tempat (Dine-In)</span>
+                                </button>
+                                <button
+                                    onClick={() => { setOrderType('Takeaway'); setSelectedTable(null); }}
+                                    className={`flex flex-col items-center justify-center p-4 border-2 rounded-xl transition-all ${orderType === 'Takeaway' ? 'border-primary-600 bg-primary-50 text-primary-800' : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:border-gray-300'}`}
+                                >
+                                    <MapPin className="w-8 h-8 mb-2" />
+                                    <span className="font-bold">Bawa Pulang (Takeaway)</span>
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
-                    {/* Pemilihan Meja (Only for Dine-In) */}
-                    {orderType === 'Dine-In' && (
+                    {/* Pemilihan Meja (Only for Dine-In and not editing) */}
+                    {orderType === 'Dine-In' && !editOrderId && (
                         <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                             <label className="block text-sm font-semibold text-gray-700 mb-3">Pilih Meja Tersedia</label>
                             {loadingTables ? (

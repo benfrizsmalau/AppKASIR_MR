@@ -21,10 +21,13 @@ export async function checkSubdomain(subdomain) {
 
 export async function checkEmailExists(email) {
     try {
+        // Hanya cek email untuk role Owner/Admin agar Kasir dengan email sama
+        // tidak memblokir registrasi usaha baru yang sah
         const { data } = await dbAdmin
             .from('staff_users')
             .select('id')
-            .eq('email', email)
+            .eq('email', email.toLowerCase().trim())
+            .in('role', ['Owner', 'Admin'])
             .maybeSingle();
 
         return { exists: !!data };
@@ -34,16 +37,30 @@ export async function checkEmailExists(email) {
 }
 
 export async function proceedRegistration(payload) {
+    let createdTenantId = null;
+    let createdOutletId = null;
+
     try {
-        const { 
+        const {
             name, email, phone, password, businessName, businessType, subdomain,
-            address, village, district, regency, province, postalCode 
+            address, village, district, regency, province, postalCode
         } = payload;
 
-        // Validasi email belum terdaftar
-        const { exists } = await checkEmailExists(email);
-        if (exists) {
+        // Validasi email belum terdaftar (filter Owner/Admin saja)
+        const { data: existingUser } = await dbAdmin
+            .from('staff_users')
+            .select('id')
+            .eq('email', email.toLowerCase().trim())
+            .in('role', ['Owner', 'Admin'])
+            .maybeSingle();
+
+        if (existingUser) {
             return { success: false, message: 'Email sudah terdaftar. Gunakan email lain atau masuk ke akun Anda.' };
+        }
+
+        // Validasi password minimal 8 karakter
+        if (!password || password.length < 8) {
+            return { success: false, message: 'Kata sandi minimal 8 karakter.' };
         }
 
         // Hash password dengan bcrypt (10 rounds)
@@ -58,12 +75,12 @@ export async function proceedRegistration(payload) {
         }).select().single();
 
         if (tenantErr) {
-            // Subdomain conflict
             if (tenantErr.code === '23505') {
                 return { success: false, message: 'Subdomain sudah digunakan. Pilih subdomain lain.' };
             }
             throw tenantErr;
         }
+        createdTenantId = tenant.id;
 
         // 2. Buat Outlet Utama
         const { data: outlet, error: outletErr } = await dbAdmin.from('outlets').insert({
@@ -83,13 +100,14 @@ export async function proceedRegistration(payload) {
         }).select().single();
 
         if (outletErr) throw outletErr;
+        createdOutletId = outlet.id;
 
         // 3. Buat akun Owner (role: Owner, password di-hash)
         const { error: userErr } = await dbAdmin.from('staff_users').insert({
             tenant_id: tenant.id,
             outlet_id: outlet.id,
             full_name: name,
-            email: email,
+            email: email.toLowerCase().trim(),
             role: 'Owner',
             is_active: true,
             pin_hash: hashedPassword,
@@ -97,10 +115,20 @@ export async function proceedRegistration(payload) {
 
         if (userErr) throw userErr;
 
-        // Set identification cookies agar langsung terdeteksi di login page
+        // Set identification cookies — httpOnly untuk keamanan
         const cookieStore = await cookies();
-        cookieStore.set('active_tenant_id', tenant.id, { path: '/', maxAge: 60 * 60 * 24 * 30 });
-        cookieStore.set('active_outlet_id', outlet.id, { path: '/', maxAge: 60 * 60 * 24 * 30 });
+        cookieStore.set('active_tenant_id', tenant.id, {
+            path: '/',
+            httpOnly: true,
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24 * 30
+        });
+        cookieStore.set('active_outlet_id', outlet.id, {
+            path: '/',
+            httpOnly: true,
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24 * 30
+        });
 
         return {
             success: true,
@@ -111,6 +139,19 @@ export async function proceedRegistration(payload) {
 
     } catch (err) {
         console.error('Registration Error:', err);
+
+        // Cleanup: hapus data yang sudah terbuat jika proses gagal di tengah jalan
+        try {
+            if (createdOutletId) {
+                await dbAdmin.from('outlets').delete().eq('id', createdOutletId);
+            }
+            if (createdTenantId) {
+                await dbAdmin.from('tenants').delete().eq('id', createdTenantId);
+            }
+        } catch (cleanupErr) {
+            console.error('Cleanup Error after failed registration:', cleanupErr);
+        }
+
         return { success: false, message: 'Gagal melakukan pendaftaran. Periksa kembali data Anda.' };
     }
 }

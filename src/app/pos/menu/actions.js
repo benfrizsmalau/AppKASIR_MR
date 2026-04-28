@@ -14,6 +14,9 @@ async function getActiveContext() {
 }
 
 // STORAGE UPLOAD
+const ALLOWED_IMAGE_TYPES = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+const MAX_IMAGE_SIZE_MB = 5;
+
 export async function uploadMenuImage(formData) {
     try {
         const { tenant_id } = await getActiveContext();
@@ -22,7 +25,17 @@ export async function uploadMenuImage(formData) {
         const file = formData.get('file');
         if (!file) return { success: false, message: 'No file provided' };
 
-        const fileExt = file.name.split('.').pop();
+        // Validasi tipe file
+        const fileExt = file.name.split('.').pop().toLowerCase();
+        if (!ALLOWED_IMAGE_TYPES.includes(fileExt)) {
+            return { success: false, message: `Tipe file tidak didukung. Gunakan: ${ALLOWED_IMAGE_TYPES.join(', ')}` };
+        }
+
+        // Validasi ukuran file (max 5MB)
+        if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
+            return { success: false, message: `Ukuran file terlalu besar. Maksimum ${MAX_IMAGE_SIZE_MB}MB.` };
+        }
+
         const fileName = `${tenant_id}/${Date.now()}.${fileExt}`;
         const filePath = `menu-items/${fileName}`;
 
@@ -70,12 +83,13 @@ export async function getCategories() {
 
 export async function saveCategory(formData) {
     try {
-        const { tenant_id } = await getActiveContext();
+        const { tenant_id, outlet_id } = await getActiveContext();
         if (!tenant_id) return { success: false, message: 'Invalid session' };
 
         const id = formData.id;
         const data = {
             tenant_id,
+            outlet_id,
             name: formData.name,
             icon: formData.icon || 'Package',
             sequence_order: parseInt(formData.sequence_order) || 0,
@@ -123,20 +137,31 @@ export async function saveMenuItem(formData) {
         if (!tenant_id) return { success: false, message: 'Invalid session' };
 
         const id = formData.id;
+        const price = parseFloat(formData.price);
+
+        // Validasi harga — tidak boleh nol atau negatif
+        if (isNaN(price) || price <= 0) {
+            return { success: false, message: 'Harga menu harus lebih dari 0.' };
+        }
+
         const data = {
             tenant_id,
             category_id: formData.category_id,
             name: formData.name,
             description: formData.description,
-            price: parseFloat(formData.price),
+            price,
             cost_price: parseFloat(formData.cost_price) || 0,
             image_url: formData.image_url,
             status: formData.status || 'Tersedia',
             track_stock: formData.track_stock || false,
-            current_stock: parseFloat(formData.current_stock) || 0,
             min_stock: parseFloat(formData.min_stock) || 0,
             updated_at: new Date().toISOString()
         };
+
+        // current_stock hanya boleh diset saat INSERT — edit stok harus lewat adjustStock()
+        if (!id) {
+            data.current_stock = parseFloat(formData.current_stock) || 0;
+        }
 
         let result;
         if (id) {
@@ -164,8 +189,8 @@ export async function adjustStock({ menuItemId, type, quantity, notes }) {
         let newStock = Number(item.current_stock);
 
         if (type === 'Masuk') newStock += Number(quantity);
-        else if (type === 'Keluar' || type === 'Retur') newStock -= Number(quantity);
-        else if (type === 'Penyesuaian') newStock = Number(quantity);
+        else if (type === 'Keluar' || type === 'Retur') newStock = Math.max(0, newStock - Number(quantity));
+        else if (type === 'Penyesuaian') newStock = Math.max(0, Number(quantity));
 
         // 2. Update Menu Item
         const { error: updErr } = await dbAdmin.from('menu_items').update({ current_stock: newStock }).eq('id', menuItemId);

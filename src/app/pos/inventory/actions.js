@@ -38,18 +38,25 @@ export async function saveIngredient(formData) {
         const { tenant_id, outlet_id } = await getActiveContext();
         if (!tenant_id) return { success: false, message: 'Invalid session' };
 
+        const isEdit = !!formData.id;
+
         const payload = {
             tenant_id,
             outlet_id,
             name: formData.name,
             unit: formData.unit || 'pcs',
-            current_stock: parseFloat(formData.current_stock) || 0,
             min_stock: parseFloat(formData.min_stock) || 0,
             cost_per_unit: parseFloat(formData.cost_per_unit) || 0,
         };
 
+        // current_stock hanya boleh diset saat INSERT (baru)
+        // Edit stok harus lewat adjustStock() agar tercatat di stock_movements
+        if (!isEdit) {
+            payload.current_stock = parseFloat(formData.current_stock) || 0;
+        }
+
         let res;
-        if (formData.id) {
+        if (isEdit) {
             res = await dbAdmin.from('ingredients').update(payload).eq('id', formData.id).eq('tenant_id', tenant_id);
         } else {
             res = await dbAdmin.from('ingredients').insert([payload]);
@@ -67,11 +74,32 @@ export async function saveIngredient(formData) {
 export async function deleteIngredient(id) {
     try {
         const { tenant_id } = await getActiveContext();
+        if (!tenant_id) return { success: false, message: 'Invalid session' };
+
+        // Cek apakah bahan baku ini dipakai di resep aktif
+        const { data: usedInRecipes, error: recipeErr } = await dbAdmin
+            .from('recipes')
+            .select('id, menu_items(name)')
+            .eq('ingredient_id', id)
+            .eq('tenant_id', tenant_id)
+            .limit(5);
+
+        if (recipeErr) throw recipeErr;
+
+        if (usedInRecipes && usedInRecipes.length > 0) {
+            const menuNames = usedInRecipes.map(r => r.menu_items?.name).filter(Boolean).join(', ');
+            return {
+                success: false,
+                message: `Bahan baku ini digunakan dalam resep: ${menuNames}. Hapus resep terkait terlebih dahulu.`
+            };
+        }
+
         const { error } = await dbAdmin.from('ingredients').delete().eq('id', id).eq('tenant_id', tenant_id);
         if (error) throw error;
         revalidatePath('/pos/inventory');
         return { success: true };
     } catch (err) {
+        console.error('deleteIngredient error:', err);
         return { success: false, message: 'Gagal hapus bahan baku.' };
     }
 }
@@ -98,7 +126,7 @@ export async function adjustStock(ingredientId, adjustment, notes) {
             tenant_id,
             outlet_id,
             ingredient_id: ingredientId,
-            movement_type: adjustment > 0 ? 'Masuk' : 'Keluar',
+            movement_type: adjustment > 0 ? 'Masuk' : 'Penyesuaian',
             quantity: Math.abs(adjustment),
             notes: notes || 'Penyesuaian manual',
         }]);
@@ -115,7 +143,7 @@ export async function adjustStock(ingredientId, adjustment, notes) {
 
 export async function getRecipes() {
     try {
-        const { tenant_id } = await getActiveContext();
+        const { tenant_id, outlet_id } = await getActiveContext();
         if (!tenant_id) return { success: false, message: 'Invalid session' };
 
         const { data, error } = await dbAdmin
@@ -138,7 +166,7 @@ export async function getRecipes() {
 
 export async function saveRecipe(formData) {
     try {
-        const { tenant_id } = await getActiveContext();
+        const { tenant_id, outlet_id } = await getActiveContext();
         if (!tenant_id) return { success: false, message: 'Invalid session' };
 
         const payload = {
@@ -183,7 +211,7 @@ export async function getStockMovements(ingredientId) {
         const { tenant_id, outlet_id } = await getActiveContext();
         if (!tenant_id) return { success: false, message: 'Invalid session' };
 
-        const query = dbAdmin
+        let query = dbAdmin
             .from('stock_movements')
             .select('*, ingredients(name, unit)')
             .eq('tenant_id', tenant_id)
@@ -191,7 +219,7 @@ export async function getStockMovements(ingredientId) {
             .order('created_at', { ascending: false })
             .limit(100);
 
-        if (ingredientId) query.eq('ingredient_id', ingredientId);
+        if (ingredientId) query = query.eq('ingredient_id', ingredientId);
 
         const { data, error } = await query;
         if (error) throw error;

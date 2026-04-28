@@ -30,7 +30,7 @@ import DebtPaymentModal from "./DebtPaymentModal";
 import { lockMasaPajak } from "../actions";
 import { processRefund } from "@/app/pos/actions/orders";
 
-const TABS = ["Ringkasan", "Transaksi", "Per Kasir", "Per Metode", "Pembatalan", "PBJT", "Rekonsiliasi"];
+const TABS = ["Ringkasan", "Transaksi", "Per Kasir", "Per Metode", "Pembatalan", "Piutang", "PBJT", "Rekonsiliasi"];
 
 const MONTH_NAMES = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 
@@ -217,7 +217,7 @@ export default function ReportsClient({ initialSalesData, initialCreditData, ini
                                 onClick={() => setActiveTab(tab)}
                                 className={`text-sm font-bold transition-colors whitespace-nowrap ${activeTab === tab ? 'text-primary-900 border-b-2 border-primary-900 pb-1' : 'text-gray-400 hover:text-gray-600'}`}
                             >
-                                {tab === 'PBJT' ? 'Buku Besar PBJT' : tab}
+                                {tab === 'PBJT' ? 'Buku Besar PBJT' : tab === 'Piutang' ? 'Buku Hutang' : tab}
                             </button>
                         ))}
                     </div>

@@ -1,14 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Lock, Settings, ChevronRight, AlertCircle, Loader2 } from "lucide-react";
-import { processOwnerSignIn } from "../actions";
+import { Mail, Lock, Settings, ChevronRight, AlertCircle, Loader2, X, Eye, EyeOff } from "lucide-react";
+import { processOwnerSignIn, resetPassword as doResetPassword } from "../actions";
 
 export default function SignInClient() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
+
+    // State modal lupa sandi
+    const [showResetModal, setShowResetModal] = useState(false);
+    const [resetEmail, setResetEmail] = useState('');
+    const [resetPassword, setResetPasswordVal] = useState('');
+    const [resetConfirm, setResetConfirm] = useState('');
+    const [showResetPwd, setShowResetPwd] = useState(false);
+    const [resetLoading, setResetLoading] = useState(false);
+    const [resetMsg, setResetMsg] = useState({ type: '', text: '' });
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -25,7 +34,122 @@ export default function SignInClient() {
         }
     };
 
+    const handleOpenReset = () => {
+        setResetEmail(email); // pre-fill dari email login jika ada
+        setResetPasswordVal('');
+        setResetConfirm('');
+        setResetMsg({ type: '', text: '' });
+        setShowResetModal(true);
+    };
+
+    const handleReset = async (e) => {
+        e.preventDefault();
+        setResetMsg({ type: '', text: '' });
+
+        if (resetPassword !== resetConfirm) {
+            setResetMsg({ type: 'error', text: 'Konfirmasi kata sandi tidak cocok.' });
+            return;
+        }
+
+        setResetLoading(true);
+        const res = await doResetPassword(resetEmail, resetPassword);
+        setResetLoading(false);
+
+        if (res.success) {
+            setResetMsg({ type: 'success', text: res.message });
+            setTimeout(() => {
+                setShowResetModal(false);
+                setEmail(resetEmail);
+            }, 2000);
+        } else {
+            setResetMsg({ type: 'error', text: res.message });
+        }
+    };
+
     return (
+        <>
+        {/* Modal Lupa Sandi */}
+        {showResetModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 p-8 relative animate-in zoom-in-95 duration-200">
+                    <button
+                        onClick={() => setShowResetModal(false)}
+                        className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+
+                    <h3 className="text-2xl font-black text-primary-900 mb-1 tracking-tighter">Reset Kata Sandi</h3>
+                    <p className="text-sm text-gray-500 font-medium mb-6">Masukkan email dan kata sandi baru Anda.</p>
+
+                    <form onSubmit={handleReset} className="space-y-4">
+                        {resetMsg.text && (
+                            <div className={`p-3 rounded-2xl text-sm font-bold flex items-center gap-2 ${resetMsg.type === 'success' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
+                                <AlertCircle className="w-4 h-4 shrink-0" />
+                                {resetMsg.text}
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Email Terdaftar</label>
+                            <div className="relative">
+                                <Mail className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    required
+                                    type="email"
+                                    value={resetEmail}
+                                    onChange={e => setResetEmail(e.target.value)}
+                                    className="w-full bg-gray-50 rounded-2xl py-3.5 pl-12 pr-4 border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-100 outline-none font-bold text-gray-800 transition-all font-sans"
+                                    placeholder="owner@domain.com"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Kata Sandi Baru</label>
+                            <div className="relative">
+                                <Lock className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    required
+                                    type={showResetPwd ? 'text' : 'password'}
+                                    value={resetPassword}
+                                    onChange={e => setResetPasswordVal(e.target.value)}
+                                    className="w-full bg-gray-50 rounded-2xl py-3.5 pl-12 pr-12 border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-100 outline-none font-bold text-gray-800 transition-all"
+                                    placeholder="Min. 6 karakter"
+                                />
+                                <button type="button" onClick={() => setShowResetPwd(!showResetPwd)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                    {showResetPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Konfirmasi Kata Sandi</label>
+                            <div className="relative">
+                                <Lock className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    required
+                                    type={showResetPwd ? 'text' : 'password'}
+                                    value={resetConfirm}
+                                    onChange={e => setResetConfirm(e.target.value)}
+                                    className="w-full bg-gray-50 rounded-2xl py-3.5 pl-12 pr-4 border border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-100 outline-none font-bold text-gray-800 transition-all"
+                                    placeholder="Ulangi kata sandi baru"
+                                />
+                            </div>
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={resetLoading}
+                            className="w-full bg-primary-900 text-accent-400 py-4 rounded-2xl font-black shadow-lg hover:bg-primary-800 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-2"
+                        >
+                            {resetLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Memperbarui...</> : 'Perbarui Kata Sandi'}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        )}
+
         <div className="w-full max-w-5xl mx-auto flex flex-col md:flex-row bg-white rounded-[40px] shadow-2xl overflow-hidden min-h-[600px] animate-in fade-in zoom-in-95 duration-500">
 
             {/* Kiri: Cover Brand / Visual */}
@@ -85,7 +209,7 @@ export default function SignInClient() {
                             <div>
                                 <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 flex justify-between">
                                     <span>Kata Sandi</span>
-                                    <a href="#" className="text-accent-600 hover:text-accent-700 transition-colors">Lupa Sandi?</a>
+                                                    <button type="button" onClick={handleOpenReset} className="text-accent-600 hover:text-accent-700 transition-colors font-black">Lupa Sandi?</button>
                                 </label>
                                 <div className="relative">
                                     <Lock className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -129,5 +253,6 @@ export default function SignInClient() {
                 </div>
             </div>
         </div>
+        </>
     );
 }
