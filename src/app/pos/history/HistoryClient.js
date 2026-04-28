@@ -9,7 +9,21 @@ import {
 } from "lucide-react";
 import { getOrderDetail, processRefund } from "../actions/orders";
 
-// ─── Modal Detail Order ────────────────────────────────────────────────────────
+// ─── Zigzag edge SVG untuk efek kertas robek ─────────────────────────────────
+function ZigzagEdge({ flip = false }) {
+    return (
+        <svg viewBox="0 0 360 16" className="w-full block" style={{ transform: flip ? 'rotate(180deg)' : 'none', display: 'block', marginBottom: flip ? 0 : -1, marginTop: flip ? -1 : 0 }} preserveAspectRatio="none" height="16">
+            <path d="M0,16 L10,4 L20,16 L30,4 L40,16 L50,4 L60,16 L70,4 L80,16 L90,4 L100,16 L110,4 L120,16 L130,4 L140,16 L150,4 L160,16 L170,4 L180,16 L190,4 L200,16 L210,4 L220,16 L230,4 L240,16 L250,4 L260,16 L270,4 L280,16 L290,4 L300,16 L310,4 L320,16 L330,4 L340,16 L350,4 L360,16 L360,0 L0,0 Z" fill="#fffef5" />
+        </svg>
+    );
+}
+
+// ─── Garis putus-putus separator ──────────────────────────────────────────────
+function Dashes() {
+    return <div className="border-t-2 border-dashed border-gray-300 my-3" />;
+}
+
+// ─── Modal Detail Order — Tampilan Struk Kertas ───────────────────────────────
 function OrderDetailModal({ orderId, onClose }) {
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -39,7 +53,6 @@ function OrderDetailModal({ orderId, onClose }) {
         if (res.success) {
             setRefundMsg({ type: 'success', text: res.message });
             setShowRefund(false);
-            // Reload order
             const detail = await getOrderDetail(orderId);
             if (detail.success) setOrder(detail.order);
             router.refresh();
@@ -48,222 +61,232 @@ function OrderDetailModal({ orderId, onClose }) {
         }
     };
 
-    const handlePrint = () => {
-        if (!order) return;
-        window.print();
-    };
-
     const activeItems = order?.order_items?.filter(i => i.status !== 'Dibatalkan') || [];
     const payment = order?.payments?.[0];
     const paymentMethod = payment?.payment_method || (order?.is_credit ? 'Hutang' : 'Tunai');
 
+    const statusLabel = () => {
+        if (order?.is_refunded) return { text: '★ DIREFUND ★', color: 'text-purple-600' };
+        if (order?.status === 'Dibatalkan') return { text: '✗ DIBATALKAN', color: 'text-red-600' };
+        if (order?.is_credit) return { text: '⚠ HUTANG - MENUNGGU BAYAR', color: 'text-orange-600' };
+        if (order?.status === 'Selesai') return { text: '✓ LUNAS', color: 'text-green-700' };
+        return { text: order?.status?.toUpperCase() || '', color: 'text-blue-600' };
+    };
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-sm" onClick={onClose}>
+            {/* Wrapper kertas — lebar struk thermal */}
+            <div className="w-full max-w-xs flex flex-col" style={{ filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.45))' }}
                 onClick={e => e.stopPropagation()}>
 
-                {/* Header */}
-                <div className="px-6 py-4 border-b flex items-center justify-between bg-gray-50 shrink-0">
-                    <div className="flex items-center gap-3">
-                        <Receipt className="w-5 h-5 text-primary-600" />
-                        <h2 className="text-lg font-black text-primary-900">
-                            {order ? order.order_number : 'Detail Pesanan'}
-                        </h2>
-                    </div>
-                    <button onClick={onClose} className="p-2 bg-gray-200 hover:bg-red-100 hover:text-red-600 rounded-full transition-colors">
+                {/* Tombol tutup di luar kertas */}
+                <div className="flex justify-end mb-2 pr-1">
+                    <button onClick={onClose} className="bg-white/20 hover:bg-white/40 text-white rounded-full p-1.5 transition-all backdrop-blur-sm">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
-                {/* Body */}
-                <div className="flex-1 overflow-y-auto">
+                {/* Kertas atas — zigzag */}
+                <ZigzagEdge />
+
+                {/* Body struk */}
+                <div className="bg-[#fffef5] overflow-y-auto" style={{ maxHeight: '75vh' }}>
+
                     {loading && (
-                        <div className="flex items-center justify-center py-20 gap-3 text-gray-400">
-                            <Loader2 className="w-6 h-6 animate-spin" />
-                            <span className="font-semibold">Memuat detail...</span>
+                        <div className="flex items-center justify-center py-16 gap-3 text-gray-400">
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            <span className="text-sm font-mono">Memuat struk...</span>
                         </div>
                     )}
 
                     {error && (
-                        <div className="flex items-center justify-center py-20 gap-3 text-red-500">
-                            <AlertCircle className="w-6 h-6" />
-                            <span className="font-semibold">{error}</span>
+                        <div className="flex items-center justify-center py-16 gap-2 text-red-500 px-4">
+                            <AlertCircle className="w-5 h-5 shrink-0" />
+                            <span className="text-sm font-mono">{error}</span>
                         </div>
                     )}
 
                     {order && (
-                        <div className="p-6 space-y-5">
-                            {/* Info Singkat */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="bg-gray-50 rounded-2xl p-4">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">Waktu</p>
-                                    <p className="font-bold text-gray-800 flex items-center gap-1.5">
-                                        <Clock className="w-4 h-4 text-gray-400" />
-                                        {new Date(order.created_at).toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
-                                    </p>
+                        <div className="px-5 py-4 font-mono text-gray-800 text-sm">
+
+                            {/* Header Toko */}
+                            <div className="text-center mb-3">
+                                <p className="text-base font-black tracking-widest uppercase text-gray-900">APPKASIR POS</p>
+                                <p className="text-[10px] text-gray-500 mt-0.5">Sistem Kasir Digital</p>
+                            </div>
+
+                            <Dashes />
+
+                            {/* Info Order */}
+                            <div className="space-y-1 text-xs">
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">No. Order</span>
+                                    <span className="font-bold">{order.order_number}</span>
                                 </div>
-                                <div className="bg-gray-50 rounded-2xl p-4">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">Kasir</p>
-                                    <p className="font-bold text-gray-800 flex items-center gap-1.5">
-                                        <User className="w-4 h-4 text-gray-400" />
-                                        {order.staff_users?.full_name || '-'}
-                                    </p>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">Tanggal</span>
+                                    <span className="font-bold">{new Date(order.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                                 </div>
-                                <div className="bg-gray-50 rounded-2xl p-4">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">Tipe</p>
-                                    <p className="font-bold text-gray-800">{order.order_type}</p>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">Jam</span>
+                                    <span className="font-bold">{new Date(order.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
                                 </div>
-                                <div className="bg-gray-50 rounded-2xl p-4">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">Pembayaran</p>
-                                    <p className="font-bold text-gray-800 flex items-center gap-1.5">
-                                        <CreditCard className="w-4 h-4 text-gray-400" />
-                                        {paymentMethod}
-                                    </p>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">Kasir</span>
+                                    <span className="font-bold">{order.staff_users?.full_name || '-'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">Tipe</span>
+                                    <span className="font-bold">{order.order_type}</span>
                                 </div>
                                 {order.customer_name && (
-                                    <div className="col-span-2 bg-blue-50 rounded-2xl p-4">
-                                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-wider mb-1">Pelanggan</p>
-                                        <p className="font-bold text-blue-800">{order.customer_name}</p>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-500">Pelanggan</span>
+                                        <span className="font-bold text-right max-w-[55%] leading-tight">{order.customer_name}</span>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Status badge */}
-                            <div className="flex items-center gap-2">
-                                {order.is_refunded && (
-                                    <span className="px-3 py-1 rounded-full text-xs font-black bg-purple-100 text-purple-700 border border-purple-200">DIREFUND</span>
-                                )}
-                                {order.status === 'Selesai' && !order.is_refunded && (
-                                    order.is_credit
-                                        ? <span className="px-3 py-1 rounded-full text-xs font-black bg-orange-100 text-orange-700 border border-orange-200">HUTANG - MENUNGGU BAYAR</span>
-                                        : <span className="px-3 py-1 rounded-full text-xs font-black bg-green-100 text-green-700 border border-green-200">LUNAS</span>
-                                )}
-                                {order.status === 'Dibatalkan' && (
-                                    <span className="px-3 py-1 rounded-full text-xs font-black bg-red-100 text-red-700 border border-red-200">DIBATALKAN</span>
-                                )}
-                                {!['Selesai', 'Dibatalkan'].includes(order.status) && (
-                                    <span className="px-3 py-1 rounded-full text-xs font-black bg-blue-100 text-blue-700 border border-blue-200">{order.status.toUpperCase()}</span>
-                                )}
-                            </div>
+                            <Dashes />
 
                             {/* Item Pesanan */}
-                            <div>
-                                <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                                    <Package className="w-3.5 h-3.5" /> Item Pesanan
-                                </p>
-                                <div className="bg-gray-50 rounded-2xl overflow-hidden divide-y divide-gray-100">
-                                    {activeItems.map(item => (
-                                        <div key={item.id} className="px-4 py-3 flex items-center justify-between gap-3">
-                                            <div className="flex-1">
-                                                <p className="font-bold text-gray-800 text-sm">{item.menu_items?.name}</p>
-                                                {item.variation_label && (
-                                                    <p className="text-[10px] text-gray-400">{item.variation_label}</p>
-                                                )}
-                                                {item.notes && (
-                                                    <p className="text-[10px] text-gray-400 italic">"{item.notes}"</p>
-                                                )}
-                                            </div>
-                                            <div className="text-right shrink-0">
-                                                <p className="text-xs text-gray-500">{item.quantity}x Rp {Number(item.unit_price).toLocaleString('id-ID')}</p>
-                                                <p className="font-black text-gray-800 text-sm">Rp {Number(item.subtotal).toLocaleString('id-ID')}</p>
-                                            </div>
+                            <div className="space-y-2">
+                                {activeItems.map(item => (
+                                    <div key={item.id}>
+                                        <p className="font-bold text-xs leading-tight">{item.menu_items?.name}</p>
+                                        {item.variation_label && <p className="text-[10px] text-gray-400 leading-tight">{item.variation_label}</p>}
+                                        {item.notes && <p className="text-[10px] text-gray-400 italic">"{item.notes}"</p>}
+                                        <div className="flex justify-between text-xs mt-0.5">
+                                            <span className="text-gray-500">{item.quantity} x Rp {Number(item.unit_price).toLocaleString('id-ID')}</span>
+                                            <span className="font-bold">Rp {Number(item.subtotal).toLocaleString('id-ID')}</span>
                                         </div>
-                                    ))}
-                                </div>
+                                    </div>
+                                ))}
                             </div>
 
-                            {/* Ringkasan Total */}
-                            <div className="bg-primary-50 rounded-2xl p-4 space-y-2">
+                            <Dashes />
+
+                            {/* Subtotal & Pajak */}
+                            <div className="space-y-1 text-xs">
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">Subtotal</span>
+                                    <span>Rp {Number(order.subtotal).toLocaleString('id-ID')}</span>
+                                </div>
                                 {Number(order.discount_total) > 0 && (
-                                    <div className="flex justify-between text-sm text-gray-600">
+                                    <div className="flex justify-between text-red-600">
                                         <span>Diskon</span>
-                                        <span className="text-red-600 font-bold">- Rp {Number(order.discount_total).toLocaleString('id-ID')}</span>
+                                        <span>- Rp {Number(order.discount_total).toLocaleString('id-ID')}</span>
                                     </div>
                                 )}
                                 {Number(order.service_charge_total) > 0 && (
-                                    <div className="flex justify-between text-sm text-gray-600">
-                                        <span>Service Charge</span>
-                                        <span className="font-bold">Rp {Number(order.service_charge_total).toLocaleString('id-ID')}</span>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-500">Service Charge</span>
+                                        <span>Rp {Number(order.service_charge_total).toLocaleString('id-ID')}</span>
                                     </div>
                                 )}
                                 {Number(order.pbjt_total) > 0 && (
-                                    <div className="flex justify-between text-sm text-gray-600">
-                                        <span>PBJT</span>
-                                        <span className="font-bold">Rp {Number(order.pbjt_total).toLocaleString('id-ID')}</span>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-500">PBJT (10%)</span>
+                                        <span>Rp {Number(order.pbjt_total).toLocaleString('id-ID')}</span>
                                     </div>
-                                )}
-                                <div className="flex justify-between items-center pt-2 border-t border-primary-200">
-                                    <span className="font-black text-primary-900">TOTAL</span>
-                                    <span className="font-black text-primary-900 text-lg">Rp {Number(order.grand_total).toLocaleString('id-ID')}</span>
-                                </div>
-                                {payment?.amount_paid > 0 && (
-                                    <>
-                                        <div className="flex justify-between text-sm text-gray-600">
-                                            <span>Dibayar</span>
-                                            <span className="font-bold">Rp {Number(payment.amount_paid).toLocaleString('id-ID')}</span>
-                                        </div>
-                                        {Number(payment.amount_change) > 0 && (
-                                            <div className="flex justify-between text-sm text-gray-600">
-                                                <span>Kembalian</span>
-                                                <span className="font-bold">Rp {Number(payment.amount_change).toLocaleString('id-ID')}</span>
-                                            </div>
-                                        )}
-                                    </>
                                 )}
                             </div>
 
-                            {/* Pesan refund */}
+                            {/* Total */}
+                            <div className="border-t-2 border-gray-800 mt-3 pt-2">
+                                <div className="flex justify-between items-center">
+                                    <span className="font-black text-sm tracking-wider">TOTAL</span>
+                                    <span className="font-black text-base">Rp {Number(order.grand_total).toLocaleString('id-ID')}</span>
+                                </div>
+                            </div>
+
+                            {/* Pembayaran */}
+                            <div className="space-y-1 text-xs mt-2">
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">Metode</span>
+                                    <span className="font-bold uppercase">{paymentMethod}</span>
+                                </div>
+                                {payment?.amount_paid > 0 && (
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-500">Dibayar</span>
+                                        <span className="font-bold">Rp {Number(payment.amount_paid).toLocaleString('id-ID')}</span>
+                                    </div>
+                                )}
+                                {Number(payment?.amount_change) > 0 && (
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-500">Kembalian</span>
+                                        <span className="font-bold">Rp {Number(payment.amount_change).toLocaleString('id-ID')}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <Dashes />
+
+                            {/* Status */}
+                            <div className="text-center py-1">
+                                <span className={`text-xs font-black tracking-widest ${statusLabel().color}`}>
+                                    {statusLabel().text}
+                                </span>
+                            </div>
+
+                            <Dashes />
+
+                            {/* Terima kasih */}
+                            <p className="text-center text-[10px] text-gray-400 pb-1">Terima kasih atas kunjungan Anda!</p>
+
+                            {/* Pesan Refund */}
                             {refundMsg && (
-                                <div className={`p-3 rounded-xl text-sm font-bold flex items-center gap-2 ${refundMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                                    <AlertCircle className="w-4 h-4 shrink-0" /> {refundMsg.text}
+                                <div className={`mt-3 p-2 rounded text-xs font-bold text-center ${refundMsg.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                    {refundMsg.text}
                                 </div>
                             )}
 
                             {/* Form Refund */}
                             {showRefund && (
-                                <div className="bg-red-50 rounded-2xl p-4 space-y-3">
-                                    <p className="text-sm font-black text-red-700">Alasan Refund</p>
+                                <div className="mt-3 bg-red-50 border border-red-200 rounded-xl p-3 space-y-2">
+                                    <p className="text-xs font-black text-red-700">Alasan Refund:</p>
                                     <textarea
                                         value={refundReason}
                                         onChange={e => setRefundReason(e.target.value)}
                                         rows={2}
-                                        placeholder="Tuliskan alasan refund..."
-                                        className="w-full bg-white border border-red-200 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-red-300"
+                                        placeholder="Tuliskan alasan..."
+                                        className="w-full bg-white border border-red-200 rounded-lg p-2 text-xs outline-none focus:ring-1 focus:ring-red-300 font-mono"
                                     />
                                     <div className="flex gap-2">
-                                        <button onClick={() => setShowRefund(false)} className="flex-1 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50">
+                                        <button onClick={() => setShowRefund(false)} className="flex-1 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600">
                                             Batal
                                         </button>
                                         <button onClick={handleRefund} disabled={!refundReason.trim() || refundLoading}
-                                            className="flex-1 py-2 bg-red-600 text-white rounded-xl text-sm font-bold disabled:opacity-50 hover:bg-red-700">
-                                            {refundLoading ? 'Memproses...' : 'Konfirmasi Refund'}
+                                            className="flex-1 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold disabled:opacity-50">
+                                            {refundLoading ? 'Proses...' : 'Konfirmasi'}
                                         </button>
                                     </div>
                                 </div>
                             )}
+
+                            {/* Tombol aksi */}
+                            <div className="flex gap-2 mt-4 pb-2">
+                                {order.status === 'Selesai' && !order.is_refunded && (
+                                    <button
+                                        onClick={() => { setShowRefund(true); setRefundMsg(null); }}
+                                        className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-red-200 text-red-600 rounded-xl text-xs font-bold hover:bg-red-50 transition-all"
+                                    >
+                                        <RotateCcw className="w-3.5 h-3.5" /> Refund
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => window.print()}
+                                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-gray-900 text-yellow-400 rounded-xl text-xs font-black hover:bg-gray-800 transition-all"
+                                >
+                                    <Printer className="w-3.5 h-3.5" /> Cetak Ulang
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
 
-                {/* Footer Actions */}
-                {order && (
-                    <div className="px-6 py-4 border-t bg-gray-50 shrink-0 flex gap-3">
-                        {order.status === 'Selesai' && !order.is_refunded && (
-                            <button
-                                onClick={() => { setShowRefund(true); setRefundMsg(null); }}
-                                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-red-200 text-red-600 rounded-xl text-sm font-bold hover:bg-red-50 transition-all"
-                            >
-                                <RotateCcw className="w-4 h-4" /> Refund
-                            </button>
-                        )}
-                        <button
-                            onClick={handlePrint}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-900 text-accent-400 rounded-xl text-sm font-black hover:bg-primary-800 transition-all"
-                        >
-                            <Printer className="w-4 h-4" /> Cetak Ulang Struk
-                        </button>
-                    </div>
-                )}
+                {/* Kertas bawah — zigzag terbalik */}
+                <ZigzagEdge flip />
             </div>
         </div>
     );
