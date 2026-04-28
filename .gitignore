@@ -36,6 +36,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# Claude Code worktrees (jangan di-track git)
+.claude/worktrees/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
