@@ -32,12 +32,41 @@ const nextConfig = {
 
 export default withPWA({
   dest: 'public',
-  cacheOnFrontEndNav: true,
-  aggressiveFrontEndNavCaching: true,
-  reloadOnOnline: true,
-  swcMinify: true,
   disable: process.env.NODE_ENV === 'development',
+  // Jangan cache server actions & API routes agar tidak stale
   workboxOptions: {
     disableDevLogs: true,
+    // Exclude server action requests dari cache
+    navigateFallbackDenylist: [/^\/_next\//, /^\/api\//],
+    runtimeCaching: [
+      {
+        // Static assets Next.js — cache dengan stale-while-revalidate
+        urlPattern: /^https:\/\/.*\/_next\/static\/.*/i,
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'next-static',
+          expiration: { maxEntries: 200, maxAgeSeconds: 7 * 24 * 60 * 60 },
+        },
+      },
+      {
+        // Gambar — cache lama ok
+        urlPattern: /^https:\/\/.*\.(png|jpg|jpeg|svg|gif|webp|ico)$/i,
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'images',
+          expiration: { maxEntries: 100, maxAgeSeconds: 30 * 24 * 60 * 60 },
+        },
+      },
+      {
+        // Halaman HTML — selalu network-first agar server action ID selalu fresh
+        urlPattern: /^https:\/\/.*/i,
+        handler: 'NetworkFirst',
+        options: {
+          cacheName: 'pages',
+          networkTimeoutSeconds: 10,
+          expiration: { maxEntries: 50, maxAgeSeconds: 24 * 60 * 60 },
+        },
+      },
+    ],
   },
 })(nextConfig);
