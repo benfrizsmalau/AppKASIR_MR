@@ -353,3 +353,35 @@ export async function addItemsToOrder({ orderId, cartData, itemsSubtotal, discou
         return { success: false, message: err.message || 'Gagal menambahkan item ke pesanan.' };
     }
 }
+
+export async function getOrderDetail(orderId) {
+    try {
+        const { tenant_id } = await getActiveContext();
+        if (!tenant_id) return { success: false, message: 'Invalid session' };
+
+        const { data: order, error } = await dbAdmin
+            .from('orders')
+            .select(`
+                id, order_number, order_type, status, grand_total,
+                subtotal, dpp_total, pbjt_total, discount_total,
+                service_charge_total, is_credit, is_refunded,
+                customer_name, notes, created_at,
+                staff_users!cashier_id ( full_name ),
+                payments ( id, payment_method, amount_paid, amount_change, status, reference_number ),
+                order_items (
+                    id, quantity, unit_price, subtotal, notes,
+                    variation_label, status,
+                    menu_items ( name )
+                )
+            `)
+            .eq('id', orderId)
+            .eq('tenant_id', tenant_id)
+            .single();
+
+        if (error) throw error;
+        return { success: true, order };
+    } catch (err) {
+        console.error('getOrderDetail error:', err);
+        return { success: false, message: 'Gagal mengambil detail pesanan.' };
+    }
+}
